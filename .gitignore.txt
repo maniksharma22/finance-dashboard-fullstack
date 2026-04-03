@@ -1,0 +1,13 @@
+# Ignore huge folders
+**/node_modules/
+**/target/
+
+# Ignore private passwords and keys
+**/.env
+**/.env.local
+**/.ds_store
+
+# Ignore IntelliJ and VS Code settings
+.idea/
+*.iml
+.vscode/
