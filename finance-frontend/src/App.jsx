@@ -18,6 +18,8 @@ ChartJS.register(
   LinearScale, PointElement, LineElement, Title, Filler
 );
 
+const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [summary, setSummary] = useState({ totalIncome: 0, totalExpense: 0, netBalance: 0, categoryBreakdown: {} });
@@ -46,7 +48,8 @@ const App = () => {
   };
 
   const fetchData = useCallback(() => {
-    fetch('http://localhost:8081/api/records', { headers: authHeaders })
+    // First Fetch: Records
+    fetch(`${baseUrl}/api/records`, { headers: authHeaders })
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -68,7 +71,8 @@ const App = () => {
         showToast("System Connection Error", "error");
       });
 
-    fetch('http://localhost:8081/api/records/summary', { headers: authHeaders })
+    // Second Fetch: Summary
+    fetch(`${baseUrl}/api/records/summary`, { headers: authHeaders })
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -76,7 +80,7 @@ const App = () => {
       .then(setSummary)
       .catch(() => {
       });
-  }, [authHeaders]);
+  }, [authHeaders, baseUrl]); 
 
   useEffect(() => {
     fetchData();
@@ -115,7 +119,7 @@ const App = () => {
     e.preventDefault();
     if (user.role === 'VIEWER') return showToast("Permission Denied", "error");
     const payload = { ...formData, amount: parseFloat(formData.amount), date: new Date(formData.date).toISOString() };
-    fetch('http://localhost:8081/api/records', { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) })
+   fetch(`${baseUrl}/api/records`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) })
       .then(res => {
         if (res.ok) {
           fetchData(); setShowForm(false); showToast("Transaction Logged");
@@ -132,7 +136,7 @@ const App = () => {
   const confirmDeleteAction = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
-    const url = type === 'user' ? `http://localhost:8081/api/users/${id}` : `http://localhost:8081/api/records/${id}`;
+    const url = type === 'user' ? `${baseUrl}/api/users/${id}` : `${baseUrl}/api/records/${id}`;
 
     try {
       const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
@@ -196,7 +200,7 @@ const App = () => {
                   <UserPlus size={18} /> Provision User
                 </button>
               </div>
-            )}
+            )} 
           </nav>
           <div className="mt-auto pt-6 border-t border-white/10 cursor-default">
             <div className="flex items-center gap-3">
@@ -410,4 +414,4 @@ const StatCard = ({ label, amount, icon, trend, color = "text-slate-900" }) => (
   </div>
 );
 
-export default App;
+export default App;"// Manual Trigger" 
