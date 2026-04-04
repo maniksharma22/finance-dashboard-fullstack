@@ -1,13 +1,11 @@
 FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /app
 
-# Point these to the finance-backend folder
-COPY finance-backend/.mvn/ .mvn
-COPY finance-backend/mvnw finance-backend/pom.xml ./
-RUN chmod +x mvnw
+# This copies EVERYTHING from your repo into the container
+COPY . .
 
-# Point this to the finance-backend/src folder
-COPY finance-backend/src ./src
+# We move into the backend folder to build
+RUN cd finance-backend && chmod +x mvnw && ./mvnw clean package -DskipTests
 
-RUN ./mvnw clean package -DskipTests
-ENTRYPOINT ["java","-jar","target/finance-dashboard-0.0.1-SNAPSHOT.jar"]
+# We run the jar from its new location
+ENTRYPOINT ["java","-jar","finance-backend/target/finance-dashboard-0.0.1-SNAPSHOT.jar"]
