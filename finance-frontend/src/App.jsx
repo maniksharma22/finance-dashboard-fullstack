@@ -100,7 +100,7 @@ const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
     setActiveTab('Dashboard');
     setSearchTerm('');
-  }, 500); // 0.5s delay
+  }, 600); 
 }, []);
 
  const fetchData = useCallback(() => {
@@ -113,7 +113,7 @@ const handleLogout = useCallback(() => {
 
       setTimeout(() => {
         handleLogout();
-      }, 500); 
+      }, 300); 
       return;
     }
       if (!res.ok) {
@@ -171,7 +171,7 @@ const handleLogout = useCallback(() => {
       
         setTimeout(() => {
           handleLogout(); 
-        }, 500); 
+        }, 300); 
         return;
       }
 
@@ -418,7 +418,7 @@ const handleLogout = useCallback(() => {
                       
                       if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
                         setLoading(false);
-                      //  showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+                        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
                         return;
                       }
                       
@@ -439,9 +439,11 @@ const handleLogout = useCallback(() => {
                     if (res.status === 401) {
                       setTimeout(() => {
                       showToast("Invalid Credentials: Please verify your email and password.", "error");
-                      }, 200); 
+                      }, 300); 
                     } else if (res.status === 403) {
+                      setTimeout(() => {
                       showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
+                      }, 300);
                     } else {
                       showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
                     }
