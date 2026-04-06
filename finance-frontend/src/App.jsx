@@ -225,7 +225,7 @@ const handleSubmit = (e) => {
         if (isUpdate) {
           setTransactions(prev => prev.map(txn => txn.id === data.id ? data : txn));
         } else {
-          setTransactions(prev => [data, ...prev]);
+          setRecords(prev => [data, ...prev]);
         }
         setShowForm(false);
         showToast(isUpdate ? "Transaction Updated" : "Transaction Logged", "success");
@@ -277,9 +277,9 @@ const handleSubmit = (e) => {
     const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
     if (res.ok) {
       if (type === 'user') {
-        setUsers(prev => prev.filter(u => u.id !== id));
+        //setUsers(prev => prev.filter(u => u.id !== id));
       } else {
-        setTransactions(prev => prev.filter(txn => txn.id !== id));
+        setRecords(prev => prev.filter(txn => txn.id !== id));
       }
 
       setDeleteTarget(null);
