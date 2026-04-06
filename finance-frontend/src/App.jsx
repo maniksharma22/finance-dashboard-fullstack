@@ -658,21 +658,21 @@ const App = () => {
 
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
-              <UserManagement
-                authHeaders={authHeaders}
-                onDeleteUser={(id) => {
-                  handleDeleteRequest(id, 'user');
-                  return new Promise((resolve) => {
-                    const interval = setInterval(() => {
-                      if (!deleteTarget) {
-                        clearInterval(interval);
-                        resolve();
-                      }
-                    }, 50);
-                  });
-                }}
-              />
-            </div>
+          <UserManagement
+            authHeaders={authHeaders}
+            onDeleteUser={async (id) => {
+              handleDeleteRequest(id, 'user');
+            }}
+            onToggleStatus={async (id, currentStatus) => {
+              const response = await fetch(`${baseUrl}/api/users/${id}/status`, {
+                method: 'PATCH',
+                headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: !currentStatus })
+              });
+              if (!response.ok) throw new Error("Status update failed");
+            }}
+          />
+        </div>
           )}
         </div>
       </main>
