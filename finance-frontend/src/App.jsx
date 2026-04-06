@@ -326,108 +326,42 @@ const handleLogout = () => {
    if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-        <div className="bg-white p-10 rounded-[40px] shadow-2xl w-full max-w-md text-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6 shadow-lg shadow-indigo-500/20">FinanceOS</div>
-          <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900">Welcome Back</h2>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Enter your credentials to access FinanceOS</p>
-          <div className="space-y-4 text-left">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
-              <input 
-              type="email" 
-              placeholder="name@finance.com" 
-              className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              />
-            </div>
-            <div className="relative">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
-             <input 
-                type={showPassword ? "text" : "password"} 
-                placeholder="••••••••••••" 
-                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-              />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-         <button 
-          disabled={loading}   
-          onClick={() => {
-            setLoading(true);   
-            const email = loginEmail;
-            const pass = loginPassword;
-            const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
-        
-            fetch(`${baseUrl}/api/records`, {
-              method: 'GET',
-              headers: {
-                'Authorization': basicAuth,
-                'Content-Type': 'application/json'
-              }
-            })
-            .then(async res => {
-              if (res.ok) {
-                localStorage.setItem('userEmail', email);
-                localStorage.setItem('userPassword', pass);
-                
-                fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-                  headers: { 'Authorization': basicAuth }
-                })
-                .then(r => r.ok ? r.json() : null)
-                .then(data => {
-                  if (data) {
-                    const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
-                    const finalRole = data.role || "ROLE_VIEWER";
-                    localStorage.setItem('userName', finalName);
-                    localStorage.setItem('userRole', finalRole);
-                    setUser({ name: finalName, role: finalRole });
-                  }
-                  setIsLoggedIn(true);
-                  showToast("Authentication Verified", "success");
-                  setLoading(false);   
-                })
-                .catch(() => {
-                  setIsLoggedIn(true);
-                  showToast("Login Successful", "success");
-                  setLoading(false);  
-                });
-              } else if (res.status === 403 || res.status === 401) {
-                showToast("Access Denied: Invalid Credentials", "error");
-                setLoading(false);     
-              } else {
-                showToast("Server Error", "error");
-                setLoading(false);    
-              }
-            })
-            .catch(() => {
-              showToast("Server Connection Failed", "error");
-              setLoading(false);       
-            });
-          }}
-          className="w-full py-4 mt-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 group border-none outline-none disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="animate-spin" size={16} />
-              Logging in...
-            </>
-          ) : (
-            <>
-              Secure Login
-              <Lock size={16} className="group-hover:translate-x-0.5 transition-transform" />
-            </>
-          )}
-        </button>
-        </div>
+        <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
+  <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[24px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-4 border-white">
+    F
+  </div>
+  <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900 mt-4">Welcome Back</h2>
+  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Enter your credentials to access FinanceOS</p>
+  <div className="space-y-5 text-left">
+    <div>
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
+      <input 
+        type="email" 
+        placeholder="name@finance.com" 
+        className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+        value={loginEmail}
+        onChange={(e) => setLoginEmail(e.target.value)}
+      />
+    </div>
+    <div className="relative">
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
+      <input 
+        type={showPassword ? "text" : "password"} 
+        placeholder="••••••••••••" 
+        className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+        value={loginPassword}
+        onChange={(e) => setLoginPassword(e.target.value)}
+      />
+      <button 
+        type="button"
+        onClick={() => setShowPassword(!showPassword)}
+        className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2 outline-none"
+      >
+        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  </div>
+</div>
       </div>
     );
   }
