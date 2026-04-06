@@ -1,11 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, Edit3, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const UserManagement = ({ authHeaders, onDeleteUser }) => {
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, Edit3, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+
+  const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
+   const currentUserEmail = useMemo(() => {
+    if (!authHeaders?.Authorization) return null;
+    try {
+      const encoded = authHeaders.Authorization.split(' ')[1];
+      const decoded = atob(encoded); 
+      return decoded.split(':')[0];  
+    } catch (e) {
+      return null;
+    }
+  }, [authHeaders]);
   const [users, setUsers] = useState([]);
+
+  const [actionLoading, setActionLoading] = useState({});
+
+  const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8081").replace(/\/$/, '');
+    
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -14,26 +31,31 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 5;
 
-  // We use import.meta.env to grab the URL from your .env file
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
- const fetchUsers = () => {
+ const fetchUsers = useCallback(() => {
+    fetch(`${baseUrl}/api/users`, { headers: authHeaders })
+      .then(res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => setUsers([]));
+  }, [authHeaders, baseUrl]);
 
-  fetch(`${baseUrl}/api/users`, { headers: authHeaders })
-    .then(res => {
-      if (!res.ok) throw new Error();
-      return res.json();
-    })
-    .then(data => setUsers(Array.isArray(data) ? data : []))
-    .catch(() => setUsers([]));
-};
-
-  useEffect(() => { fetchUsers(); }, []);
-
-  // Async wait for parent modal to finish before refreshing the local list
-  const handleDelete = async (id) => {
-    await onDeleteUser(id);
+  useEffect(() => { 
     fetchUsers(); 
+  }, [fetchUsers]);
+
+  const handleDelete = async (id) => {
+    try {
+      setActionLoading(prev => ({ ...prev, [id]: true }));
+      await onDeleteUser(id);
+      fetchUsers();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -71,45 +93,62 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
     setSuccess(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
+ const handleSubmit = (e) => {
+  e.preventDefault();
+  setError(null);
+  setSuccess(null);
+  setLoading(true);
 
-    const url = isEditing
+  const url = isEditing
     ? `${baseUrl}/api/users/${selectedUserId}`
     : `${baseUrl}/api/users`;
+  const method = isEditing ? 'PUT' : 'POST';
+  const payload = { ...newUser };
+  if (isEditing && (!payload.password || payload.password.trim() === "")) {
+    delete payload.password;
+  }
 
-    const method = isEditing ? 'PUT' : 'POST';
-
-    fetch(url, {
-      method: method,
-      headers: { ...authHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify(newUser)
-    }).then(res => {
+  fetch(url, {
+    method,
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(async (res) => {
       if (res.ok) {
         setSuccess(isEditing ? "Identity Updated" : "Identity Deployed");
         fetchUsers();
         setTimeout(() => handleCloseModal(), 1500);
       } else {
-        setError("Action could not be completed.");
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.message || "Action could not be completed.");
       }
-    }).catch(() => {
-      setError("System unreachable.");
-    });
-  };
-
-  const toggleUserStatus = (id, currentStatus) => {
-  fetch(`${baseUrl}/api/users/${id}/status`, {
-    method: 'PATCH',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled: !currentStatus })
-  }).then(res => {
-    if (res.ok) fetchUsers();
-  });
+    })
+    .catch(() => setError("System unreachable. Check backend connection."))
+    .finally(() => setLoading(false));
 };
 
-  return (
+      const handleToggleStatus = async (id, currentStatus) => {
+        try {
+          setActionLoading(prev => ({ ...prev, [userId]: true }));
+      
+          const response = await fetch(`${baseUrl}/api/users/${userId}/status`, {
+            method: 'PATCH', // or PUT depending on your backend
+            headers: { ...authHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: !currentStatus })
+          });
+      
+          if (!response.ok) throw new Error("Failed to update status");
+      
+          // Refresh users
+          fetchUsers();
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setActionLoading(prev => ({ ...prev, [userId]: false }));
+        }
+      };
+
+ return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mt-8">
       {/* Header Section */}
       <div className="px-10 py-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center bg-white gap-6">
@@ -147,6 +186,7 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
               <tr className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
                 <th className="px-6 py-4 text-left">Identity Profile</th>
                 <th className="px-6 py-4 text-center">System Role</th>
+                <th className="px-6 py-4 text-center">Last Activity</th>
                 <th className="px-6 py-4 text-center">Current Status</th>
                 <th className="px-6 py-4 text-right pr-10">Actions</th>
               </tr>
@@ -165,24 +205,60 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
                       </div>
                     </div>
                   </td>
+                  
                   <td className="px-6 py-5 bg-slate-50/50 text-center">
                     <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${u.role === 'ROLE_ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600'}`}>
                       {u.role?.replace('ROLE_', '')}
                     </span>
                   </td>
                   <td className="px-6 py-5 bg-slate-50/50 text-center">
-                    <button
-                      onClick={() => toggleUserStatus(u.id, u.active)}
-                      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border ${u.active ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-rose-500 border-rose-100 hover:bg-rose-50'}`}
-                    >
+                    <p className="text-[11px] font-bold text-slate-700 leading-none">
+                      {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : 'Never'}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                      {u.lastLogin ? new Date(u.lastLogin).toLocaleTimeString('en-IN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      }) : 'No Logs'}
+                    </p>
+                  </td>
+                  <td className="px-6 py-5 bg-slate-50/50 text-center">
+                 <button
+                  onClick={() => handleToggleStatus(u.id, u.active)}
+                  disabled={u.email === currentUserEmail || actionLoading[u.id]}
+                >
+                  {actionLoading[u.id] ? (
+                    <Loader2 className="animate-spin" size={12} />
+                  ) : (
+                    <>
                       <div className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                       {u.active ? 'Active' : 'Inactive'}
-                    </button>
+                    </>
+                  )}
+                </button>
                   </td>
                   <td className="px-6 py-5 bg-slate-50/50 rounded-r-[24px] text-right pr-10">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEditModal(u)} className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90"><Edit3 size={18} /></button>
-                      <button onClick={() => handleDelete(u.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90"><Trash2 size={18} /></button>
+                      <button onClick={() => openEditModal(u)}
+                       className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90">
+                       <Edit3 size={18} />
+                      </button>
+                      
+                     <button
+                        onClick={() => handleDelete(u.id)}
+                        disabled={u.email === currentUserEmail || actionLoading[u.id]}
+                        className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90 flex items-center justify-center"
+                      >
+                        {actionLoading[u.id] ? (
+                          <Loader2 className="animate-spin text-rose-500" size={18} />
+                        ) : (
+                          <Trash2 size={18} />
+                        )}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -259,7 +335,14 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Security Key {isEditing && "(Leave blank to keep)"}</label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input className="w-full pl-14 pr-6 py-4 bg-slate-50 rounded-2xl text-sm font-bold ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-600 outline-none" type="password" required={!isEditing} placeholder="••••••••" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
+                  <input
+                    className="w-full pl-14 pr-6 py-4 bg-slate-50 rounded-2xl text-sm font-bold ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-600 outline-none"
+                    type="password"
+                    placeholder={isEditing ? "Leave blank to keep current password" : "••••••••"}
+                    required={!isEditing ? true : false}
+                    value={newUser.password}
+                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                  />
                 </div>
               </div>
 
@@ -276,15 +359,26 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
                 </div>
               </div>
 
-              <button type="submit" disabled={!!success} className={`w-full py-5 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 active:scale-95 cursor-pointer border-none outline-none ${success ? 'bg-emerald-500' : 'bg-slate-900 hover:bg-indigo-600'}`}>
-                {success ? "Deployed" : isEditing ? "Update Identity" : "Deploy Identity"}
+              <button
+                type="submit"
+                disabled={loading || !!success}
+                className={`w-full py-5 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 active:scale-95 cursor-pointer border-none outline-none flex items-center justify-center gap-2 ${success ? 'bg-emerald-500' : 'bg-slate-900 hover:bg-indigo-600'} disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    {isEditing ? "Updating..." : "Deploying..."}
+                  </>
+                ) : (
+                  success ? "Deployed" : isEditing ? "Update Identity" : "Deploy Identity"
+                )}
               </button>
             </form>
           </div>
         </div>
-      )}
+     )}
     </div>
   );
-};
+}; 
 
 export default UserManagement;
