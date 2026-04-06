@@ -53,13 +53,9 @@ public class FinancialRecordService {
         repository.deleteById(id);
     }
 
-    public List<FinancialRecord> getAll() {
-        User currentUser = getCurrentUser();
-        if (currentUser.getRole() == Role.ROLE_ADMIN || currentUser.getRole() == Role.ROLE_ANALYST) {
-            return repository.findAll();
-        }
-        return repository.findByCreatedBy(currentUser);
-    }
+   public List<FinancialRecord> getAll() {
+    return repository.findAllByOrderByDateDesc();
+   }
 
     public Map<String, Object> getSummary() {
         List<FinancialRecord> records = getAll();
@@ -89,13 +85,14 @@ public class FinancialRecordService {
                 "recordCount", records.size()
         );
     }
+
     public List<FinancialRecord> getFilteredRecords(String type, String category, LocalDateTime start, LocalDateTime end) {
         List<FinancialRecord> all = getAll();
 
         return all.stream()
                 .filter(r -> type == null || r.getType().equalsIgnoreCase(type))
                 .filter(r -> category == null || r.getCategory().equalsIgnoreCase(category))
-                .filter(r -> (start == null || r.getDate().isAfter(start)) && (end == null || r.getDate().isBefore(end)))
+                .filter(r -> (start == null || !r.getDate().isBefore(start)) && (end == null || !r.getDate().isAfter(end)))
                 .collect(Collectors.toList());
     }
 }
