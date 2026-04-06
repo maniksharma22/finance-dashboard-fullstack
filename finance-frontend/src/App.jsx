@@ -404,6 +404,7 @@ const App = () => {
                       localStorage.setItem('userRole', finalRole);
                       setUser({ name: finalName, role: finalRole });
                       setIsLoggedIn(true);
+                      showToast("Login Successful!", "success");
                     } else {
                       setIsLoggedIn(true);
                     }
