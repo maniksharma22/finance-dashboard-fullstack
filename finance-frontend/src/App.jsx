@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Search,
   Shield, PieChart, Activity, Bell, ChevronDown, CheckCircle,
   ArrowUpRight, ArrowDownLeft, CreditCard, Lock, UserPlus,
-  Trash2, Settings as SettingsIcon, Sparkles, SearchX
+  Trash2, Settings as SettingsIcon, Sparkles, SearchX, XCircle, AlertCircle, X
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
@@ -17,6 +17,8 @@ ChartJS.register(
   ArcElement, Tooltip, Legend, CategoryScale,
   LinearScale, PointElement, LineElement, Title, Filler
 );
+
+const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -46,7 +48,8 @@ const App = () => {
   };
 
   const fetchData = useCallback(() => {
-    fetch('http://localhost:8081/api/records', { headers: authHeaders })
+    // First Fetch: Records
+    fetch(`${baseUrl}/api/records`, { headers: authHeaders })
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -65,10 +68,11 @@ const App = () => {
       })
       .catch(() => {
         setRecords([]);
-        showToast("System Connection Error", "error");
+        showToast("System Connection Failed", "error");
       });
 
-    fetch('http://localhost:8081/api/records/summary', { headers: authHeaders })
+    // Second Fetch: Summary
+    fetch(`${baseUrl}/api/records/summary`, { headers: authHeaders })
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -76,7 +80,7 @@ const App = () => {
       .then(setSummary)
       .catch(() => {
       });
-  }, [authHeaders]);
+  }, [authHeaders, baseUrl]); 
 
   useEffect(() => {
     fetchData();
@@ -112,17 +116,40 @@ const App = () => {
   }, [searchTerm]);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (user.role === 'VIEWER') return showToast("Permission Denied", "error");
-    const payload = { ...formData, amount: parseFloat(formData.amount), date: new Date(formData.date).toISOString() };
-    fetch('http://localhost:8081/api/records', { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) })
-      .then(res => {
-        if (res.ok) {
-          fetchData(); setShowForm(false); showToast("Transaction Logged");
-          setFormData({ amount: '', category: '', description: '', type: 'EXPENSE', date: new Date().toISOString().split('T')[0] });
-        }
-      });
+  e.preventDefault();
+  
+  if (user.role === 'VIEWER') return showToast("Permission Denied", "error");
+
+  if (!formData.amount || !formData.category) {
+    return showToast("Fields cannot be empty", "error");
+  }
+
+  const payload = { 
+    ...formData, 
+    amount: parseFloat(formData.amount), 
+    date: new Date(formData.date).toISOString() 
   };
+
+  fetch(`${baseUrl}/api/records`, { 
+    method: 'POST', 
+    headers: authHeaders, 
+    body: JSON.stringify(payload) 
+  })
+    .then(res => {
+      if (res.ok) {
+        fetchData(); 
+        setShowForm(false); 
+        showToast("Transaction Logged", "success");
+        setFormData({ 
+          amount: '', category: '', description: '', 
+          type: 'EXPENSE', date: new Date().toISOString().split('T')[0] 
+        });
+      } else {
+        showToast("Failed to Save", "error");
+      }
+    })
+    .catch(() => showToast("Network Error", "error"));
+};
 
   const handleDeleteRequest = (id, type = 'record') => {
     if (user.role !== 'ADMIN') return showToast("Admin Access Required", "error");
@@ -132,7 +159,7 @@ const App = () => {
   const confirmDeleteAction = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
-    const url = type === 'user' ? `http://localhost:8081/api/users/${id}` : `http://localhost:8081/api/records/${id}`;
+    const url = type === 'user' ? `${baseUrl}/api/users/${id}` : `${baseUrl}/api/records/${id}`;
 
     try {
       const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
@@ -196,7 +223,7 @@ const App = () => {
                   <UserPlus size={18} /> Provision User
                 </button>
               </div>
-            )}
+            )} 
           </nav>
           <div className="mt-auto pt-6 border-t border-white/10 cursor-default">
             <div className="flex items-center gap-3">
@@ -373,28 +400,87 @@ const App = () => {
         </div>
       </main>
 
-      {notification && (
-        <div className="fixed bottom-10 right-10 z-[100] animate-in slide-in-from-right-10">
-          <div className={`px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-4 bg-white ${notification.type === 'success' ? 'border-emerald-500' : 'border-rose-500'}`}>
-            <CheckCircle className={notification.type === 'success' ? 'text-emerald-500' : 'text-rose-500'} size={20} />
-            <p className="text-sm font-bold text-slate-800">{notification.message}</p>
-          </div>
-        </div>
-      )}
+    {notification && (
+  <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
+    <div className={`
+      relative overflow-hidden min-w-[320px] px-6 py-5 rounded-[28px] 
+      shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl border
+      flex items-center gap-5 bg-white/90
+      ${notification.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}
+    `}>
+      
+      <div className={`
+        w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
+        ${notification.type === 'success' 
+          ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' 
+          : 'bg-rose-500 text-white shadow-rose-200 animate-pulse'}
+      `}>
+        {notification.type === 'success' ? <CheckCircle size={24} /> : <XCircle size={24} />}
+      </div>
+
+      <div className="flex-grow">
+        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {notification.type === 'success' ? 'Success Verified' : 'System Error'}
+        </h4>
+        <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
+          {notification.message}
+        </p>
+      </div>
+
+      <button 
+        onClick={() => setNotification(null)}
+        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
+      >
+        <X size={18} />
+      </button>
+
+      <div className={`
+        absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
+        ${notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}
+      `} style={{ animation: 'shrink 3s linear forwards' }}>
+        <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+      </div>
+    </div>
+
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+    `}} />
+  </div>
+)}
 
       {deleteTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner animate-pulse"><Trash2 size={48} /></div>
-            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">"Action cannot be undone."</p>
-            <div className="flex gap-4">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-5 bg-slate-50 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all cursor-pointer outline-none border border-slate-100">Cancel</button>
-              <button onClick={confirmDeleteAction} className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer outline-none border-none">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+    <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center animate-in zoom-in-95 duration-200">
+      <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-100/50">
+        <XCircle size={48} className="animate-in zoom-in duration-300" />
+      </div>
+      
+      <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">
+        "Action cannot be undone."
+      </p>
+      
+      <div className="flex gap-4">
+        <button 
+          onClick={() => setDeleteTarget(null)} 
+          className="flex-1 py-5 bg-slate-50 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all cursor-pointer outline-none border border-slate-100"
+        >
+          Cancel
+        </button>
+        
+        <button 
+          onClick={confirmDeleteAction} 
+          className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer outline-none border-none"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

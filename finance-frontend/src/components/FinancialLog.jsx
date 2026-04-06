@@ -8,7 +8,7 @@ const FinancialLog = ({
 }) => {
 
   const handleEditInitiate = (record) => {
-    setFormData({
+    setFormData({ 
       id: record.id,
       amount: record.amount.toString(),
       category: record.category,

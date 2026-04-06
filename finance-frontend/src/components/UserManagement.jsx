@@ -14,19 +14,23 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 5;
 
-  const fetchUsers = () => {
-    fetch('http://localhost:8081/api/users', { headers: authHeaders })
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then(data => setUsers(Array.isArray(data) ? data : []))
-      .catch(() => setUsers([]));
-  };
+  // We use import.meta.env to grab the URL from your .env file
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
+
+ const fetchUsers = () => {
+
+  fetch(`${baseUrl}/api/users`, { headers: authHeaders })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(data => setUsers(Array.isArray(data) ? data : []))
+    .catch(() => setUsers([]));
+};
 
   useEffect(() => { fetchUsers(); }, []);
 
-  // FIX: Async wait for parent modal to finish before refreshing the local list
+  // Async wait for parent modal to finish before refreshing the local list
   const handleDelete = async (id) => {
     await onDeleteUser(id);
     fetchUsers(); 
@@ -73,8 +77,8 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
     setSuccess(null);
 
     const url = isEditing
-      ? `http://localhost:8081/api/users/${selectedUserId}`
-      : 'http://localhost:8081/api/users';
+    ? `${baseUrl}/api/users/${selectedUserId}`
+    : `${baseUrl}/api/users`;
 
     const method = isEditing ? 'PUT' : 'POST';
 
@@ -96,14 +100,14 @@ const UserManagement = ({ authHeaders, onDeleteUser }) => {
   };
 
   const toggleUserStatus = (id, currentStatus) => {
-    fetch(`http://localhost:8081/api/users/${id}/status`, {
-      method: 'PATCH',
-      headers: { ...authHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !currentStatus })
-    }).then(res => {
-      if (res.ok) fetchUsers();
-    });
-  };
+  fetch(`${baseUrl}/api/users/${id}/status`, {
+    method: 'PATCH',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: !currentStatus })
+  }).then(res => {
+    if (res.ok) fetchUsers();
+  });
+};
 
   return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mt-8">

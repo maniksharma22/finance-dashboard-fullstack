@@ -13,9 +13,11 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Finance Dashboard API")
-                        .version("1.0")
-                        .description("Backend API for managing financial records, user roles, and dashboard analytics.")
+                        .title("FinanceOS - Fullstack Finance Management API")
+                        .version("1.0.0")
+                        .description("A robust Spring Boot REST API for FinanceOS. " +
+                                "Features include Role-Based Access Control (RBAC) for Admin, Analyst, and Viewer roles, " +
+                                "financial record CRUD operations, and aggregated dashboard analytics.")
                         .contact(new Contact()
                                 .name("Manik Sharma")
                                 .email("21512938.dypit@dypvp.edu.in")));
