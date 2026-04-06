@@ -357,111 +357,123 @@ const App = () => {
     hover: { mode: 'nearest', intersect: true },
     animation: { animateRotate: true, animateScale: true }
   };
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-[6px] border-slate-900">
+            F
+          </div>
+          <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900 mt-4">Welcome Back</h2>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Enter your credentials to access FinanceOS</p>
+          <div className="space-y-5 text-left">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
+              <input
+                type="email"
+                placeholder="name@finance.com"
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
+            </div>
+            <div className="relative">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••••••"
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2 outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <button
+              disabled={loading}
+              onClick={() => {
+                setLoading(true);
+                const email = loginEmail;
+                const pass = loginPassword;
+                const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+
+                fetch(`${baseUrl}/api/records`, {
+                  method: 'GET',
+                  headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
+                })
+                  .then(async res => {
+                    // Handle Incorrect Credentials (401) or Inactive Status (403) from Backend
+                    if (res.status === 401) {
+                      setLoading(false);
+                      showToast("Invalid Credentials: Please verify your email and password.", "error");
+                      return;
+                    }
+
+                    if (res.status === 403) {
+                      setLoading(false);
+                      showToast("Access Denied: Your account is currently inactive.", "error");
+                      return;
+                    }
+
+                    if (res.ok) {
+                      localStorage.setItem('userEmail', email);
+                      localStorage.setItem('userPassword', pass);
+
+                      const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+                        headers: { 'Authorization': basicAuth }
+                      });
+
+                      if (profileRes.ok) {
+                        const data = await profileRes.json();
+
+                        if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+                          setLoading(false);
+                          showToast("Access Denied: Account deactivated by Administrator.", "error");
+                          return;
+                        }
+
+                        const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                        const finalRole = data.role || "ROLE_VIEWER";
+
+                        localStorage.setItem('userName', finalName);
+                        localStorage.setItem('userRole', finalRole);
+                        setUser({ name: finalName, role: finalRole });
+                        setIsLoggedIn(true);
+
+                        // SUCCESS TOAST
+                        showToast(`Welcome back, ${finalName}!`, "success");
+                      } else {
+                        setIsLoggedIn(true);
+                        showToast("Login Successful", "success");
+                      }
+                      setLoading(false);
+                    } else {
+                      setLoading(false);
+                      showToast("Service Unavailable: Unable to reach the gateway.", "error");
+                    }
+                  })
+                  .catch(() => {
+                    setLoading(false);
+                    showToast("Network Error: Please check your connection.", "error");
+                  });
+              }}
+              className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : "Secure Login"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-sans text-slate-900 antialiased overflow-hidden">
-        !isLoggedIn ? (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-    <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-[6px] border-slate-900">
-        F
-      </div>
-      <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900 mt-4">Welcome Back</h2>
-      <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Enter your credentials to access FinanceOS</p>
-      <div className="space-y-5 text-left">
-        <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
-          <input
-            type="email"
-            placeholder="name@finance.com"
-            className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
-            value={loginEmail}
-            onChange={(e) => setLoginEmail(e.target.value)}
-          />
-        </div>
-        <div className="relative">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="••••••••••••"
-            className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
-            value={loginPassword}
-            onChange={(e) => setLoginPassword(e.target.value)}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2 outline-none"
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-        <button
-          disabled={loading}
-          onClick={() => {
-            setLoading(true);
-            const email = loginEmail;
-            const pass = loginPassword;
-            const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
-
-            fetch(`${baseUrl}/api/records`, {
-              method: 'GET',
-              headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
-            })
-              .then(async res => {
-                if (res.status === 401) {
-                  setLoading(false);
-                  showToast("Invalid Credentials: Please verify your email and password.", "error");
-                  return;
-                }
-                if (res.status === 403) {
-                  setLoading(false);
-                  showToast("Access Denied: Your account is currently inactive.", "error");
-                  return;
-                }
-                if (res.ok) {
-                  localStorage.setItem('userEmail', email);
-                  localStorage.setItem('userPassword', pass);
-                  const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-                    headers: { 'Authorization': basicAuth }
-                  });
-                  if (profileRes.ok) {
-                    const data = await profileRes.json();
-                    if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
-                      setLoading(false);
-                      showToast("Access Denied: Account deactivated by Administrator.", "error");
-                      return;
-                    }
-                    const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
-                    const finalRole = data.role || "ROLE_VIEWER";
-                    localStorage.setItem('userName', finalName);
-                    localStorage.setItem('userRole', finalRole);
-                    setUser({ name: finalName, role: finalRole });
-                    setIsLoggedIn(true);
-                    showToast(`Welcome back, ${finalName}!`, "success");
-                  } else {
-                    setIsLoggedIn(true);
-                    showToast("Login Successful", "success");
-                  }
-                  setLoading(false);
-                } else {
-                  setLoading(false);
-                  showToast("Service Unavailable: Unable to reach the gateway.", "error");
-                }
-              })
-              .catch(() => {
-                setLoading(false);
-                showToast("Network Error: Please check your connection.", "error");
-              });
-          }}
-          className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : "Secure Login"}
-       </button>
-      </div>
-    </div>
-  </div>
-) : ( 
       {searchTerm.length === 0 && (
         <aside className="w-72 bg-slate-900 m-4 rounded-[32px] flex flex-col p-8 text-white shadow-2xl hidden lg:flex animate-in fade-in slide-in-from-left-4 duration-500">
           <div className="flex items-center gap-3 mb-12">
