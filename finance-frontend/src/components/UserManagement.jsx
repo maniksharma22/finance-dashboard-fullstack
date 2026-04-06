@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, Edit3, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
-  const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
+const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
   const [users, setUsers] = useState([]);
-   const currentUserEmail = useMemo(() => {
+  const currentUserEmail = useMemo(() => {
     if (!authHeaders?.Authorization) return null;
     try {
       const encoded = authHeaders.Authorization.split(' ')[1];
-      const decoded = atob(encoded); 
-      return decoded.split(':')[0];  
+      const decoded = atob(encoded);
+      return decoded.split(':')[0];
     } catch (e) {
       return null;
     }
@@ -18,7 +18,7 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
   const [actionLoading, setActionLoading] = useState({});
 
   const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8081").replace(/\/$/, '');
-    
+
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -32,7 +32,7 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
   const usersPerPage = 5;
 
 
- const fetchUsers = useCallback(() => {
+  const fetchUsers = useCallback(() => {
     fetch(`${baseUrl}/api/users`, { headers: authHeaders })
       .then(res => {
         if (!res.ok) throw new Error();
@@ -42,19 +42,19 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
       .catch(() => setUsers([]));
   }, [authHeaders, baseUrl]);
 
-  useEffect(() => { 
-    fetchUsers(); 
+  useEffect(() => {
+    fetchUsers();
   }, [fetchUsers]);
 
   const handleDelete = async (id) => {
     try {
-      setActionLoading(prev => ({ ...prev, [id]: true }));
+      setActionLoading(prev => ({ ...prev, [`${id}-delete`]: true })); // Yahan 'delete' add kiya
       await onDeleteUser(id);
-      fetchUsers();
+      await fetchUsers();
     } catch (e) {
       console.error(e);
     } finally {
-      setActionLoading(prev => ({ ...prev, [id]: false }));
+      setActionLoading(prev => ({ ...prev, [`${id}-delete`]: false }));
     }
   };
 
@@ -93,16 +93,27 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
     setSuccess(null);
   };
 
- const handleSubmit = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!newUser.email.trim()) return setError("Identity (Email) is required.");
+    if (!emailRegex.test(newUser.email)) return setError("Invalid Format: Please enter a valid email.");
+    if (!isEditing && (!newUser.password || newUser.password.length < 4)) {
+      return setError("Security Key must be at least 4 characters.");
+    }
+    if (isEditing && newUser.password && newUser.password.length < 4) {
+      return setError("New Security Key must be at least 4 characters.");
+    }
+
     setLoading(true);
 
     const url = isEditing ? `${baseUrl}/api/users/${selectedUserId}` : `${baseUrl}/api/users`;
     const method = isEditing ? 'PUT' : 'POST';
     const payload = { ...newUser };
-    
+
     if (isEditing && (!payload.password || payload.password.trim() === "")) {
       delete payload.password;
     }
@@ -112,37 +123,38 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
       headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    .then(async (res) => {
-      if (res.ok) {
-        setSuccess(isEditing ? "Identity Updated" : "Identity Deployed");
-        fetchUsers();
-        setTimeout(() => handleCloseModal(), 1500);
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        setError(errorData.message || "Action failed.");
-      }
-    })
-    .catch(() => setError("System unreachable."))
-    .finally(() => setLoading(false));
+      .then(async (res) => {
+        if (res.ok) {
+          setSuccess(isEditing ? "Identity Updated" : "Identity Deployed");
+          fetchUsers();
+          setTimeout(() => handleCloseModal(), 1500);
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          setError(errorData.message || "Action failed (Identity might already exist).");
+        }
+      })
+      .catch(() => setError("System unreachable: Check your connection."))
+      .finally(() => setLoading(false));
   };
-    
-  const handleToggleStatus = async (id, currentStatus) => { 
+
+  const handleToggleStatus = async (id, currentStatus) => {
     try {
-      setActionLoading(prev => ({ ...prev, [id]: true })); 
-      await onToggleStatus(id, currentStatus);
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === id ? { ...user, active: !currentStatus } : user
-        )
-      );
+      setActionLoading(prev => ({ ...prev, [`${id}-status`]: true })); // Yahan 'status' add kiya
+      const response = await fetch(`${baseUrl}/api/users/${id}/status`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !currentStatus })
+      });
+      if (!response.ok) throw new Error();
+      await fetchUsers();
     } catch (e) {
       console.error("Status Update Failed", e);
     } finally {
-      setActionLoading(prev => ({ ...prev, [id]: false }));
+      setActionLoading(prev => ({ ...prev, [`${id}-status`]: false }));
     }
   };
 
- return (
+  return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mt-8">
       {/* Header Section */}
       <div className="px-10 py-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center bg-white gap-6">
@@ -199,60 +211,60 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
                       </div>
                     </div>
                   </td>
-                  
+
                   <td className="px-6 py-5 bg-slate-50/50 text-center">
                     <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${u.role === 'ROLE_ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600'}`}>
                       {u.role?.replace('ROLE_', '')}
                     </span>
                   </td>
-                 <td className="px-6 py-5 bg-slate-50/50 text-center">
-                  <p className="text-[11px] font-bold text-slate-700 leading-none">
-                    {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
-                      ? new Date(u.lastLogin).toLocaleDateString('en-IN', {
+                  <td className="px-6 py-5 bg-slate-50/50 text-center">
+                    <p className="text-[11px] font-bold text-slate-700 leading-none">
+                      {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
+                        ? new Date(u.lastLogin).toLocaleDateString('en-IN', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric'
                         })
-                      : 'Never'}
-                  </p>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
-                    {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
-                      ? new Date(u.lastLogin).toLocaleTimeString('en-IN', {
+                        : 'Never'}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                      {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
+                        ? new Date(u.lastLogin).toLocaleTimeString('en-IN', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })
-                      : 'No Logs'}
-                  </p>
-                </td>
+                        : 'No Logs'}
+                    </p>
+                  </td>
                   <td className="px-6 py-5 bg-slate-50/50 text-center">
-                 <button
-                  onClick={() => handleToggleStatus(u.id, u.active)}
-                  disabled={u.email === currentUserEmail || actionLoading[u.id]}
-                  className="flex items-center gap-2 mx-auto bg-transparent border-none cursor-pointer disabled:opacity-50"
-                >
-                  {actionLoading[u.id] ? (
-                    <Loader2 className="animate-spin" size={12} />
-                  ) : (
-                    <>
-                      <div className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                      <span className="text-[10px] font-bold uppercase">{u.active ? 'Active' : 'Inactive'}</span>
-                    </>
-                  )}
-                </button>
+                    <button
+                      onClick={() => handleToggleStatus(u.id, u.active)}
+                      disabled={u.email === currentUserEmail || actionLoading[`${u.id}-status`]}
+                      className="flex items-center gap-2 mx-auto bg-transparent border-none cursor-pointer disabled:opacity-50"
+                    >
+                      {actionLoading[`${u.id}-status`] ? (
+                        <Loader2 className={`animate-spin ${u.active ? 'text-rose-500' : 'text-emerald-500'}`} size={12} />
+                      ) : (
+                        <>
+                          <div className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                          <span className="text-[10px] font-bold uppercase">{u.active ? 'Active' : 'Inactive'}</span>
+                        </>
+                      )}
+                    </button>
                   </td>
                   <td className="px-6 py-5 bg-slate-50/50 rounded-r-[24px] text-right pr-10">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => openEditModal(u)}
-                       className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90">
-                       <Edit3 size={18} />
+                        className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90">
+                        <Edit3 size={18} />
                       </button>
-                      
-                     <button
+
+                      <button
                         onClick={() => handleDelete(u.id)}
-                        disabled={u.email === currentUserEmail || actionLoading[u.id]}
+                        disabled={u.email === currentUserEmail || actionLoading[`${u.id}-delete`]}
                         className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border-none bg-transparent outline-none active:scale-90 flex items-center justify-center"
                       >
-                        {actionLoading[u.id] ? (
+                        {actionLoading[`${u.id}-delete`] ? (
                           <Loader2 className="animate-spin text-rose-500" size={18} />
                         ) : (
                           <Trash2 size={18} />
@@ -278,7 +290,7 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
           Displaying {currentUsers.length} of {filteredUsers.length} Units
         </p>
         <div className="flex items-center gap-4">
-          <button 
+          <button
             disabled={currentPage === 1}
             onClick={() => setCurrentPage(prev => prev - 1)}
             className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all cursor-pointer bg-white"
@@ -288,7 +300,7 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
           <span className="text-xs font-black text-slate-900 uppercase tracking-widest">
             {currentPage} / {totalPages || 1}
           </span>
-          <button 
+          <button
             disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage(prev => prev + 1)}
             className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all cursor-pointer bg-white"
@@ -375,9 +387,9 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
             </form>
           </div>
         </div>
-     )}
+      )}
     </div>
   );
-}; 
+};
 
 export default UserManagement;
