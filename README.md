@@ -1,15 +1,16 @@
 # FinanceOS | Project Notes
 
 # Overview
-FinanceOS is a platform that helps teams track, manage, and analyze income and expenses safely. 
-It has a React + Tailwind CSS frontend and a Java Spring Boot backend. 
-Roles include ADMIN (full control), ANALYST (can analyze and view data), and VIEWER (read-only); frontend is on Render and MySQL on Clever Cloud.
+FinanceOS is a platform designed to help teams efficiently track, manage, and analyze income and expenses while ensuring data security. 
+It features a React + Tailwind CSS frontend deployed on Vercel, a Java Spring Boot backend hosted on Render, and a MySQL database on Clever Cloud. 
+The system supports role-based access with ADMIN (full control), ANALYST (can analyze and view data), and VIEWER (read-only), ensuring that only ADMIN can perform any data modifications.
 
 # Features
 - Role-based access control: ADMIN, ANALYST, VIEWER
-- Active-Sync security: login and mid-session user checks
+- Active-Sync security: login checks ensure users cannot access the system if their account has been deactivated by an ADMIN
 - Global search across Amounts, Categories, Descriptions, and Dates
 - Visual feedback for empty search results ("No Matches Found")
+- Real-time data updates: any income or expense added or modified is reflected instantly in charts and analytics
 - Expense Distribution charts (Pie/Doughnut)
 - Cashflow Pulse chart showing 7-day financial activity
 - Interactive UI
