@@ -85,9 +85,25 @@ const App = () => {
   }, [isLoggedIn]);
 
   const showToast = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  let icon;
+  switch(type) {
+    case 'success':
+      icon = <CheckCircle className="w-5 h-5 mr-2 text-green-600" />;
+      break;
+    case 'error':
+      icon = <XCircle className="w-5 h-5 mr-2 text-red-600" />;
+      break;
+    case 'blocked':
+      icon = <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />;
+      break;
+    default:
+      icon = null;
+  }
+
+  setNotification({ message, type, icon });
+
+  setTimeout(() => setNotification(null), 3000); // 3 seconds
+};
 
 const handleLogout = useCallback(() => {
   showToast("Logged out successfully", "success");
@@ -439,10 +455,12 @@ const handleLogout = useCallback(() => {
                     if (res.status === 401) {
                       setTimeout(() => {
                       showToast("Invalid Credentials: Please verify your email and password.", "error");
+                      setLoading(false);
                       }, 300); 
                     } else if (res.status === 403) {
                       setTimeout(() => {
                       showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
+                      setLoading(false);
                       }, 300);
                     } else {
                       showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
@@ -739,29 +757,54 @@ const handleLogout = useCallback(() => {
       {notification && (
         <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
           <div className={`
-            relative overflow-hidden min-w-[320px] px-6 py-5 rounded-[28px] 
-            shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl border
-            flex items-center gap-5 bg-white/90
-            ${notification.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}
+            w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
+            ${notification.type === 'success'
+              ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
+              : notification.type === 'error'
+                ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
+                : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'
+            }
           `}>
+            {notification.type === 'success' 
+              ? <CheckCircle size={24} /> 
+              : notification.type === 'error'
+                ? <XCircle size={24} />
+                : <AlertCircle size={24} />
+            }
+          </div>
 
-            <div className={`
-              w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-              ${notification.type === 'success'
-                ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
-                : 'bg-rose-500 text-white shadow-rose-200 animate-pulse'}
-            `}>
-              {notification.type === 'success' ? <CheckCircle size={24} /> : <XCircle size={24} />}
-            </div>
+           <div className={`
+           w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
+            ${notification.type === 'success'
+              ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
+              : notification.type === 'error'
+                ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
+                : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'}
+          `}>
+            {notification.type === 'success' ? <CheckCircle size={24} /> 
+              : notification.type === 'error' ? <XCircle size={24} /> 
+              : <AlertCircle size={24} />}
+          </div>
 
-            <div className="flex-grow">
-              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {notification.type === 'success' ? 'Success Verified' : 'System Error'}
-              </h4>
-              <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
-                {notification.message}
-              </p>
-            </div>
+           <div className="flex-grow">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${
+              notification.type === 'success' 
+                ? 'text-emerald-600' 
+                : notification.type === 'error' 
+                  ? 'text-rose-600' 
+                  : 'text-orange-600'
+            }`}>
+              {notification.type === 'success' 
+                ? 'Success Verified' 
+                : notification.type === 'error' 
+                  ? 'System Error' 
+                  : 'Access Blocked'
+              }
+            </h4>
+            <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
+              {notification.message}
+            </p>
+           </div>
 
             <button
               onClick={() => setNotification(null)}
