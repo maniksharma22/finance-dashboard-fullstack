@@ -40,4 +40,4 @@ Roles include ADMIN (full control), ANALYST (can analyze and view data), and VIE
 # Security Note
 - Uses Basic Auth encoded in Base64 for each request
 - Backend validates every request to ensure correct authorization
-- Real-time checks log out users immediately if they are blocked or deactivated
+- Users cannot log in if an ADMIN has deactivated their account
