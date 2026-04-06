@@ -89,6 +89,17 @@ const App = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const handleLogout = useCallback(() => {
+  localStorage.clear();
+  setUser({ name: "...", role: "..." });
+  setLoginEmail('');
+  setLoginPassword('');
+  setIsLoggedIn(false);
+  setActiveTab('Dashboard');
+  setSearchTerm('');
+  showToast("Logged out successfully", "success");
+  }, []);
+
  const fetchData = useCallback(() => {
   const config = { headers: authHeaders };
 
@@ -126,6 +137,7 @@ const App = () => {
     })
     .catch(() => {});
 }, [authHeaders, baseUrl, handleLogout]);
+  
   const fetchUserProfile = useCallback(() => {
     const email = localStorage.getItem('userEmail');
     if (!email) return;
@@ -304,17 +316,6 @@ const App = () => {
     } catch (err) {
       showToast("Network connection failed", "error");
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setUser({ name: "...", role: "..." });
-    setLoginEmail('');
-    setLoginPassword('');
-    setIsLoggedIn(false);
-    setActiveTab('Dashboard');
-    setSearchTerm('');
-    showToast("Logged out successfully", "success");
   };
 
   const pieChartOptions = {
