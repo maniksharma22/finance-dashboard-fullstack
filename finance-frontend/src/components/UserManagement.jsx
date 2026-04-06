@@ -126,16 +126,15 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
     .finally(() => setLoading(false));
   };
     
- const handleToggleStatus = async (id, currentStatus) => { 
+  const handleToggleStatus = async (id, currentStatus) => { 
     try {
       setActionLoading(prev => ({ ...prev, [id]: true })); 
-      const response = await fetch(`${baseUrl}/api/users/${id}/status`, { 
-        method: 'PATCH',
-        headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !currentStatus })
-      });
-      if (!response.ok) throw new Error();
-      fetchUsers();
+      await onToggleStatus(id, currentStatus);
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === id ? { ...user, active: !currentStatus } : user
+        )
+      );
     } catch (e) {
       console.error("Status Update Failed", e);
     } finally {
