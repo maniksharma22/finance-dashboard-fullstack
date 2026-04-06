@@ -538,6 +538,7 @@ const App = () => {
               Session: {user.role?.replace('ROLE_', '')}
             </p>
           </div>
+
           <div className="flex gap-4 items-center">
             {activeTab === 'Dashboard' && (
               <div className={`relative flex items-center transition-all duration-500 ease-out ${searchTerm.length > 0 ? 'scale-105 -translate-x-8' : ''}`}>
@@ -562,46 +563,59 @@ const App = () => {
                 )}
               </div>
             )}
+
             {searchTerm.length === 0 && (
-              <div className="relative animate-in fade-in duration-300">
-                <button
-                  onClick={() => user.role === 'ROLE_ADMIN' && setIsRoleOpen(!isRoleOpen)}
-                  className={`flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-2xl shadow-sm border border-slate-100 transition-all outline-none ${user.role === 'ROLE_ADMIN' ? 'hover:border-indigo-500 cursor-pointer' : 'cursor-default'}`}
-                >
-                  <div className="p-1.5 bg-indigo-50 rounded-lg">
-                    <Shield size={14} className="text-indigo-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Active Identity</p>
-                    <p className="text-xs font-bold text-slate-800 leading-none uppercase">{user.role?.replace('ROLE_', '')}</p>
-                  </div>
-                  {user.role === 'ROLE_ADMIN' && (
-                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
-                  )}
-                </button>
-                {isRoleOpen && user.role === 'ROLE_ADMIN' && (
-                  <>
-                    <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsRoleOpen(false)}></div>
-                    <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-slate-50 p-2 z-20 animate-in fade-in zoom-in-95">
-                      {['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'].map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => {
-                            setUser({ ...user, role });
-                            setIsRoleOpen(false);
-                            setActiveTab('Dashboard');
-                            setSearchTerm('');
-                            setCurrentPage(1);
-                          }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border-none ${user.role === role ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                        >
-                          {role.replace('ROLE_', '')}
-                          {user.role === role && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-                        </button>
-                      ))}
+              <div className="flex items-center gap-4 animate-in fade-in duration-300">
+                <div className="relative">
+                  <button
+                    onClick={() => user.role === 'ROLE_ADMIN' && setIsRoleOpen(!isRoleOpen)}
+                    className={`flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-2xl shadow-sm border border-slate-100 transition-all outline-none ${user.role === 'ROLE_ADMIN' ? 'hover:border-indigo-500 cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <div className="p-1.5 bg-indigo-50 rounded-lg">
+                      <Shield size={14} className="text-indigo-600" />
                     </div>
-                  </>
-                )}
+                    <div className="text-left">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Active Identity</p>
+                      <p className="text-xs font-bold text-slate-800 leading-none uppercase">{user.role?.replace('ROLE_', '')}</p>
+                    </div>
+                    {user.role === 'ROLE_ADMIN' && (
+                      <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
+                    )}
+                  </button>
+
+                  {isRoleOpen && user.role === 'ROLE_ADMIN' && (
+                    <>
+                      <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsRoleOpen(false)}></div>
+                      <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-slate-50 p-2 z-20 animate-in fade-in zoom-in-95">
+                        {['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'].map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => {
+                              setUser({ ...user, role });
+                              setIsRoleOpen(false);
+                              setActiveTab('Dashboard');
+                              setSearchTerm('');
+                              setCurrentPage(1);
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border-none ${user.role === role ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                          >
+                            {role.replace('ROLE_', '')}
+                            {user.role === role && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Global Logout Button moved here */}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-5 py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200 transition-all border-none cursor-pointer text-[10px] font-black uppercase tracking-widest outline-none active:scale-95"
+                >
+                  <LogOut size={14} />
+                  <span>Logout</span>
+                </button>
               </div>
             )}
           </div>
