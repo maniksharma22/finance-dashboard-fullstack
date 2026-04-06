@@ -223,7 +223,7 @@ const handleSubmit = (e) => {
     .then(({ ok, data }) => {
       if (ok) {
         if (isUpdate) {
-          setTransactions(prev => prev.map(txn => txn.id === data.id ? data : txn));
+          setRecords(prev => prev.map(txn => txn.id === data.id ? data : txn));
         } else {
           setRecords(prev => [data, ...prev]);
         }
@@ -681,9 +681,8 @@ const handleLogout = () => {
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
              <UserManagement
-              authHeaders={authHeaders}
-              onToggleStatus={handleToggleUserStatus} 
-              onDeleteUser={(id) => {
+                authHeaders={authHeaders} 
+                onDeleteUser={(id) => {
                 handleDeleteRequest(id, 'user');
                 return new Promise((resolve) => {
                   const interval = setInterval(() => {
