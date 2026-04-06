@@ -19,14 +19,35 @@ ChartJS.register(
   LinearScale, PointElement, LineElement, Title, Filler
 );
 
-const StatCard = ({ label, amount, icon, trend, color = "text-slate-900" }) => (
-  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group cursor-default">
-    <div className="flex justify-between items-start mb-4">
-      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">{icon}</div>
-      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-50 ${color}`}>{trend}</span>
+const StatCard = ({ label, amount, icon, trend, color = "text-slate-900", trendType = "up" }) => (
+  <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-default relative overflow-hidden">
+    <div className="flex justify-between items-start mb-6">
+      <div className={`p-4 rounded-2xl transition-all duration-300 ${trendType === 'up' ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white' :
+        trendType === 'down' ? 'bg-rose-50 text-rose-600 group-hover:bg-rose-500 group-hover:text-white' :
+          'bg-slate-50 text-slate-600 group-hover:bg-indigo-500 group-hover:text-white'
+        }`}>
+        {icon}
+      </div>
+      <div className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider ${trendType === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+        }`}>
+        {trendType === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+        {trend}
+      </div>
     </div>
-    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-    <h3 className={`text-3xl font-black tracking-tighter ${color}`}>₹{Number(amount).toLocaleString()}</h3>
+
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{label}</p>
+      <div className="flex items-baseline gap-1">
+        <span className="text-sm font-bold text-slate-400">₹</span>
+        <h3 className={`text-3xl font-black tracking-tighter ${color}`}>
+          {Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </h3>
+      </div>
+    </div>
+
+    <div className={`absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 ${color}`}>
+      {React.cloneElement(icon, { size: 80 })}
+    </div>
   </div>
 );
 
@@ -85,38 +106,19 @@ const App = () => {
   }, [isLoggedIn]);
 
   const showToast = (message, type = 'success') => {
-    let icon;
-    switch (type) {
-      case 'success':
-        icon = <CheckCircle className="w-5 h-5 mr-2 text-green-600" />;
-        break;
-      case 'error':
-        icon = <XCircle className="w-5 h-5 mr-2 text-red-600" />;
-        break;
-      case 'blocked':
-        icon = <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />;
-        break;
-      default:
-        icon = null;
-    }
-
-    setNotification({ message, type, icon });
-
-    setTimeout(() => setNotification(null), 3000); // 3 seconds
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleLogout = useCallback(() => {
-    showToast("Logged out successfully", "success");
-
-    setTimeout(() => {
-      localStorage.clear();
-      setUser({ name: "...", role: "..." });
-      setLoginEmail('');
-      setLoginPassword('');
-      setIsLoggedIn(false);
-      setActiveTab('Dashboard');
-      setSearchTerm('');
-    }, 600);
+    localStorage.clear();
+    setUser({ name: "...", role: "..." });
+    setLoginEmail('');
+    setLoginPassword('');
+    setIsLoggedIn(false);
+    setActiveTab('Dashboard');
+    setSearchTerm('');
+    showToast("Session Terminated: Logged out successfully", "success");
   }, []);
 
   const fetchData = useCallback(() => {
@@ -126,37 +128,24 @@ const App = () => {
       .then(async res => {
         if (res.status === 403) {
           showToast("Session Expired: Your account is no longer active.", "error");
-
-          setTimeout(() => {
-            handleLogout();
-          }, 300);
+          handleLogout();
           return;
         }
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.status);
-        }
+        if (!res.ok) throw new Error(await res.text() || res.status);
         return res.json();
       })
       .then(data => {
         if (data) {
-          const sorted = data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
-          setRecords(sorted);
+          setRecords(data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at)));
         }
       })
       .catch(err => {
-        if (err.message !== "Forbidden") {
-          showToast(`Records sync failed: ${err.message}`, "error");
-        }
+        if (!err.message.includes("403")) showToast(`Sync Failed: ${err.message}`, "error");
       });
 
     fetch(`${baseUrl}/api/records/summary`, config)
-      .then(async res => {
-        if (res.ok) return res.json();
-      })
-      .then(data => {
-        if (data) setSummary(data);
-      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setSummary(data))
       .catch(() => { });
   }, [authHeaders, baseUrl, handleLogout]);
 
@@ -184,10 +173,7 @@ const App = () => {
         if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
           setLoading(false);
           showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
-
-          setTimeout(() => {
-            handleLogout();
-          }, 300);
+          handleLogout();
           return;
         }
 
@@ -199,7 +185,7 @@ const App = () => {
       .catch(err => {
         console.warn("Profile fetch skipped. Using session data.", err);
       });
-  }, [authHeaders, baseUrl]);
+  }, [authHeaders, baseUrl, handleLogout]);
 
   useEffect(() => {
     const savedName = localStorage.getItem('userName');
@@ -261,10 +247,10 @@ const App = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (user.role === 'ROLE_VIEWER') return showToast("Permission Denied", "error");
+    if (user.role === 'ROLE_VIEWER') return showToast("Permission Denied: Viewers cannot modify data", "error");
 
     if (!formData.amount || !formData.category) {
-      return showToast("Fields cannot be empty", "error");
+      return showToast("Required: Please enter amount and category", "error");
     }
 
     const isUpdate = !!formData.id;
@@ -282,26 +268,20 @@ const App = () => {
       headers: authHeaders,
       body: JSON.stringify(payload)
     })
-      .then(res => res.json().then(data => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (ok) {
-          if (isUpdate) {
-            setRecords(prev => prev.map(txn => txn.id === data.id ? data : txn));
-          } else {
-            setRecords(prev => [data, ...prev]);
-          }
+      .then(async res => {
+        const data = await res.json();
+        if (res.ok) {
+          setRecords(prev => isUpdate ? prev.map(txn => txn.id === data.id ? data : txn) : [data, ...prev]);
           setShowForm(false);
-          showToast(isUpdate ? "Transaction Updated" : "Transaction Logged", "success");
-          setFormData({
-            amount: '', category: '', description: '',
-            type: 'EXPENSE', date: new Date().toISOString().split('T')[0]
-          });
+          showToast(isUpdate ? "Transaction Updated Successfully" : "New Transaction Logged", "success");
+          setFormData({ amount: '', category: '', description: '', type: 'EXPENSE', date: new Date().toISOString().split('T')[0] });
         } else {
-          showToast("Failed to Save: Server Error", "error");
+          showToast(data.message || "Failed to Save: Server Error", "error");
         }
       })
-      .catch(() => showToast("Network Error", "error"));
+      .catch(() => showToast("Network Error: Check your connection", "error"));
   };
+
   const handleToggleUserStatus = async (userId, currentStatus) => {
     if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
 
@@ -324,17 +304,14 @@ const App = () => {
   };
 
   const handleDeleteRequest = (id, type = 'record') => {
-    if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
+    if (user.role !== 'ROLE_ADMIN') return showToast("Unauthorized: Admin access required to delete", "error");
     setDeleteTarget({ id, type });
   };
 
   const confirmDeleteAction = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
-
-    const url = type === 'user'
-      ? `${baseUrl}/api/users/${id}`
-      : `${baseUrl}/api/records/${id}`;
+    const url = type === 'user' ? `${baseUrl}/api/users/${id}` : `${baseUrl}/api/records/${id}`;
 
     try {
       const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
@@ -343,19 +320,16 @@ const App = () => {
           fetchData();
         } else {
           setRecords(prev => prev.filter(txn => txn.id !== id));
-          if ((filteredRecords.length - 1) % recordsPerPage === 0 && currentPage > 1) {
-            setCurrentPage(p => p - 1);
-          }
+          if (currentRecords.length === 1 && currentPage > 1) setCurrentPage(p => p - 1);
         }
-
         setDeleteTarget(null);
-        showToast(`${type === 'user' ? 'User' : 'Transaction'} deleted successfully`, "success");
+        showToast(`${type === 'user' ? 'User' : 'Transaction'} permanently removed`, "success");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        showToast(errorData.message || "Deletion failed", "error");
+        showToast(errorData.message || "Deletion failed: Server rejected request", "error");
       }
     } catch (err) {
-      showToast("Network connection failed", "error");
+      showToast("Network Error: Could not reach server", "error");
     }
   };
 
@@ -421,6 +395,19 @@ const App = () => {
                   headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
                 })
                   .then(async res => {
+                    // Handle Incorrect Credentials (401) or Inactive Status (403) from Backend
+                    if (res.status === 401) {
+                      setLoading(false);
+                      showToast("Invalid Credentials: Please verify your email and password.", "error");
+                      return;
+                    }
+
+                    if (res.status === 403) {
+                      setLoading(false);
+                      showToast("Access Denied: Your account is currently inactive.", "error");
+                      return;
+                    }
+
                     if (res.ok) {
                       localStorage.setItem('userEmail', email);
                       localStorage.setItem('userPassword', pass);
@@ -434,7 +421,7 @@ const App = () => {
 
                         if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
                           setLoading(false);
-                          showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+                          showToast("Access Denied: Account deactivated by Administrator.", "error");
                           return;
                         }
 
@@ -445,31 +432,22 @@ const App = () => {
                         localStorage.setItem('userRole', finalRole);
                         setUser({ name: finalName, role: finalRole });
                         setIsLoggedIn(true);
-                        showToast("Login Successful!", "success");
+
+                        // SUCCESS TOAST
+                        showToast(`Welcome back, ${finalName}!`, "success");
                       } else {
                         setIsLoggedIn(true);
+                        showToast("Login Successful", "success");
                       }
                       setLoading(false);
                     } else {
                       setLoading(false);
-                      if (res.status === 401) {
-                        setTimeout(() => {
-                          showToast("Invalid Credentials: Please verify your email and password.", "error");
-                          setLoading(false);
-                        }, 300);
-                      } else if (res.status === 403) {
-                        setTimeout(() => {
-                          showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
-                          setLoading(false);
-                        }, 300);
-                      } else {
-                        showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
-                      }
+                      showToast("Service Unavailable: Unable to reach the gateway.", "error");
                     }
                   })
                   .catch(() => {
                     setLoading(false);
-                    showToast("Network Error: Please check your internet connection.", "error");
+                    showToast("Network Error: Please check your connection.", "error");
                   });
               }}
               className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
@@ -526,13 +504,14 @@ const App = () => {
                     {user.name}
                   </p>
                   <p className="text-[9px] text-slate-500 mt-1 uppercase font-black tracking-tighter italic">
-                    {user.role.replace('ROLE_', '')}
+                    {user.role?.replace('ROLE_', '')}
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all border-none cursor-pointer text-[9px] font-black uppercase tracking-widest shrink-0"
+                aria-label="Logout from account"
+                className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all border-none cursor-pointer text-[9px] font-black uppercase tracking-widest shrink-0 outline-none"
               >
                 Logout
               </button>
@@ -552,17 +531,26 @@ const App = () => {
 
           <div className="flex gap-4 items-center">
             {activeTab === 'Dashboard' && (
-              <div className={`relative flex items-center transition-all duration-500 ${searchTerm.length > 0 ? 'scale-110 -translate-x-12' : ''}`}>
-                <Search className={`absolute left-5 transition-colors ${searchTerm.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`} size={18} />
+              <div className={`relative flex items-center transition-all duration-500 ease-out ${searchTerm.length > 0 ? 'scale-105 -translate-x-8' : ''}`}>
+                <div className={`absolute left-5 transition-colors duration-300 ${searchTerm.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <Search size={18} />
+                </div>
                 <input
                   type="text"
                   placeholder="Search transactions..."
-                  className={`pl-13 pr-6 py-4 bg-white rounded-2xl border-none shadow-2xl focus:ring-4 ring-indigo-500/10 text-sm outline-none transition-all ${searchTerm.length > 0 ? 'w-[600px] ring-2 ring-indigo-500' : 'w-80'}`}
+                  className={`pl-14 pr-24 py-4 bg-white rounded-2xl border-none shadow-2xl focus:ring-4 ring-indigo-500/10 text-sm font-bold text-slate-700 outline-none transition-all duration-500 ${searchTerm.length > 0 ? 'w-[500px] ring-2 ring-indigo-500' : 'w-80'
+                    }`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm.length > 0 && (
-                  <button onClick={() => setSearchTerm('')} className="absolute right-4 bg-slate-100 hover:bg-rose-100 hover:text-rose-600 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 transition-all border-none cursor-pointer">Clear</button>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 bg-slate-100 hover:bg-rose-100 hover:text-rose-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all border-none cursor-pointer flex items-center gap-2 group"
+                  >
+                    <span>Clear</span>
+                    <X size={12} className="group-hover:rotate-90 transition-transform" />
+                  </button>
                 )}
               </div>
             )}
@@ -624,36 +612,61 @@ const App = () => {
                 </div>
               )}
               <div className={`transition-all duration-700 ease-in-out ${searchTerm.length > 0 ? 'col-span-12 mt-4' : 'col-span-12 lg:col-span-8'}`}>
-                <div className={`bg-white rounded-[40px] transition-all duration-500 ${searchTerm.length > 0 ? 'shadow-2xl ring-1 ring-indigo-100 overflow-hidden' : ''}`}>
+                <div className={`bg-white rounded-[40px] transition-all duration-500 shadow-sm border border-slate-100 ${searchTerm.length > 0 ? 'shadow-2xl ring-2 ring-indigo-500/10 overflow-hidden' : ''}`}>
+
                   {searchTerm.length > 0 && (
-                    <div className="px-10 py-8 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/30">
+                    <div className="px-10 py-8 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/30 animate-in slide-in-from-top-4 duration-500">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200"><Sparkles size={20} /></div>
-                        <div><h3 className="text-lg font-black tracking-tight text-slate-900">Intelligence Search</h3><p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Showing {filteredRecords.length} results</p></div>
+                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 animate-pulse">
+                          <Sparkles size={22} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black tracking-tighter text-slate-900">Intelligence Search</h3>
+                          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
+                            Scanning records • Found {filteredRecords.length} results
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-indigo-100 shadow-sm">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Live Filtering</span>
                       </div>
                     </div>
                   )}
+
                   {searchTerm.length > 0 && filteredRecords.length === 0 ? (
                     <div className="p-32 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500">
-                      <div className="w-24 h-24 bg-rose-50/50 rounded-[32px] flex items-center justify-center mb-8 ring-1 ring-rose-100 shadow-sm"><SearchX size={40} className="text-rose-400 stroke-[1.5]" /></div>
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tighter mb-2 italic">No Matches Found!</h3>
-                      <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] text-center max-w-sm italic">"Try a different keyword."</p>
+                      <div className="w-28 h-28 bg-rose-50/50 rounded-[40px] flex items-center justify-center mb-8 ring-1 ring-rose-100 shadow-inner group">
+                        <SearchX size={48} className="text-rose-400 stroke-[1.5] group-hover:scale-110 transition-transform duration-500" />
+                      </div>
+                      <h3 className="text-3xl font-black text-slate-900 tracking-tighter mb-2 italic">No Matches Found!</h3>
+                      <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] text-center max-w-sm italic opacity-80">
+                        "Try a different keyword or check for typos."
+                      </p>
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-8 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg active:scale-95"
+                      >
+                        Clear Global Search
+                      </button>
                     </div>
                   ) : (
-                    <FinancialLog
-                      records={currentRecords}
-                      totalRecords={filteredRecords.length}
-                      user={user}
-                      onDelete={handleDeleteRequest}
-                      showForm={showForm}
-                      setShowForm={setShowForm}
-                      formData={formData}
-                      setFormData={setFormData}
-                      handleSubmit={handleSubmit}
-                      currentPage={currentPage}
-                      setCurrentPage={setCurrentPage}
-                      totalPages={totalPages}
-                    />
+                    <div className="animate-in fade-in duration-700">
+                      <FinancialLog
+                        records={currentRecords}
+                        totalRecords={filteredRecords.length}
+                        user={user}
+                        onDelete={handleDeleteRequest}
+                        showForm={showForm}
+                        setShowForm={setShowForm}
+                        formData={formData}
+                        setFormData={setFormData}
+                        handleSubmit={handleSubmit}
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        totalPages={totalPages}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -755,17 +768,13 @@ const App = () => {
       </main>
 
       {notification && (
-        <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
-          {/* Icon */}
-          <div className={`
-      w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-      ${notification.type === 'success'
-              ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
-              : notification.type === 'error'
-                ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
-                : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'
-            }
-    `}>
+        <div className="fixed top-10 right-10 z-[1000] flex items-center p-5 bg-white rounded-[32px] shadow-2xl border border-slate-100 min-w-[320px] animate-in slide-in-from-right-full fade-in duration-500 ease-out overflow-hidden">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${notification.type === 'success'
+            ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
+            : notification.type === 'error'
+              ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
+              : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'
+            }`}>
             {notification.type === 'success'
               ? <CheckCircle size={24} />
               : notification.type === 'error'
@@ -774,13 +783,12 @@ const App = () => {
             }
           </div>
 
-          {/* Text content */}
-          <div className="flex-grow ml-4">
+          <div className="flex-grow ml-4 text-left">
             <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success'
-                ? 'text-emerald-600'
-                : notification.type === 'error'
-                  ? 'text-rose-600'
-                  : 'text-orange-600'
+              ? 'text-emerald-600'
+              : notification.type === 'error'
+                ? 'text-rose-600'
+                : 'text-orange-600'
               }`}>
               {notification.type === 'success'
                 ? 'Success Verified'
@@ -794,23 +802,22 @@ const App = () => {
             </p>
           </div>
 
-          {/* Close button */}
           <button
             onClick={() => setNotification(null)}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
+            aria-label="Dismiss notification"
+            className="ml-4 p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer bg-transparent outline-none"
           >
             <X size={18} />
           </button>
 
-          {/* Progress bar */}
-          <div className={`
-      absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
-      ${notification.type === 'success' ? 'bg-emerald-500/20' : notification.type === 'error' ? 'bg-rose-500/20' : 'bg-orange-500/20'}
-    `} style={{ animation: 'shrink 3s linear forwards' }}>
-            <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'}`} />
+          <div className="absolute bottom-0 left-0 h-1.5 w-full bg-slate-100">
+            <div
+              className={`h-full transition-all ease-linear ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'
+                }`}
+              style={{ animation: 'shrink 3s linear forwards' }}
+            />
           </div>
 
-          {/* Keyframes */}
           <style dangerouslySetInnerHTML={{
             __html: `
         @keyframes shrink {
