@@ -126,27 +126,24 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
     .catch(() => setError("System unreachable. Check backend connection."))
     .finally(() => setLoading(false));
 };
-
-      const handleToggleStatus = async (id, currentStatus) => {
-        try {
-          setActionLoading(prev => ({ ...prev, [userId]: true }));
-      
-          const response = await fetch(`${baseUrl}/api/users/${userId}/status`, {
-            method: 'PATCH', // or PUT depending on your backend
-            headers: { ...authHeaders, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ active: !currentStatus })
-          });
-      
-          if (!response.ok) throw new Error("Failed to update status");
-      
-          // Refresh users
-          fetchUsers();
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setActionLoading(prev => ({ ...prev, [userId]: false }));
-        }
-      };
+ const handleToggleStatus = async (id, currentStatus) => { 
+  try {
+    setActionLoading(prev => ({ ...prev, [id]: true })); 
+    
+    const response = await fetch(`${baseUrl}/api/users/${id}/status`, { 
+      method: 'PATCH',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !currentStatus })
+    });
+    
+    if (!response.ok) throw new Error("Failed to update status");
+    fetchUsers();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setActionLoading(prev => ({ ...prev, [id]: false })); // 'id' use karo
+  }
+};
 
  return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mt-8">
