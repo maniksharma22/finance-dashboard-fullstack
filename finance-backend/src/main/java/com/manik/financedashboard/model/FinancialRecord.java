@@ -1,9 +1,11 @@
+
 package com.manik.financedashboard.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
-import java.math.BigDecimal; // Better for Money
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,6 +22,7 @@ public class FinancialRecord {
 
     @NotNull(message = "Amount is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than zero")
+    @Column(precision = 19, scale = 2)
     private BigDecimal amount;
 
     @NotBlank(message = "Type (INCOME/EXPENSE) is required")
@@ -32,6 +35,7 @@ public class FinancialRecord {
     private String description;
 
     @NotNull(message = "Date is required")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime date;
 
     @ManyToOne(fetch = FetchType.EAGER)
