@@ -398,10 +398,23 @@ const App = () => {
             <button
               disabled={loading}
               onClick={() => {
+                if (loading) return;
+                if (!loginEmail.trim() || !loginPassword.trim()) {
+                  return showToast("Required: Please enter both Email and Password.", "error");
+                }
+
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(loginEmail)) {
+                  return showToast("Invalid Format: Please enter a valid corporate email.", "error");
+                }
+
                 setLoading(true);
                 const email = loginEmail;
                 const pass = loginPassword;
-                const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+                const credentials = `${email}:${pass}`;
+                const basicAuth = 'Basic ' + btoa(encodeURIComponent(credentials).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+                  return String.fromCharCode('0x' + p1);
+                }));
 
                 fetch(`${baseUrl}/api/records`, {
                   method: 'GET',
@@ -410,13 +423,13 @@ const App = () => {
                   .then(async res => {
                     if (res.status === 401) {
                       setLoading(false);
-                      showToast("Invalid Credentials: Please verify your email and password.", "error");
+                      showToast("Access Denied: Invalid credentials or Inactive Account.", "error");
                       return;
                     }
 
                     if (res.status === 403) {
                       setLoading(false);
-                      showToast("Access Denied: Your account is currently inactive.", "error");
+                      showToast("Forbidden: You do not have permission to access this system.", "error");
                       return;
                     }
 
@@ -844,4 +857,3 @@ const App = () => {
 };
 
 export default App;
-
