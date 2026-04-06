@@ -89,27 +89,33 @@ const App = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleLogout = useCallback(() => {
-  localStorage.clear();
-  setUser({ name: "...", role: "..." });
-  setLoginEmail('');
-  setLoginPassword('');
-  setIsLoggedIn(false);
-  setActiveTab('Dashboard');
-  setSearchTerm('');
+const handleLogout = useCallback(() => {
   showToast("Logged out successfully", "success");
-  }, []);
+
+  setTimeout(() => {
+    localStorage.clear();
+    setUser({ name: "...", role: "..." });
+    setLoginEmail('');
+    setLoginPassword('');
+    setIsLoggedIn(false);
+    setActiveTab('Dashboard');
+    setSearchTerm('');
+  }, 500); // 0.5s delay
+}, []);
 
  const fetchData = useCallback(() => {
   const config = { headers: authHeaders };
 
   fetch(`${baseUrl}/api/records`, config)
     .then(async res => {
-      if (res.status === 403) {
-        showToast("Session Expired: Your account is no longer active.", "error");
+     if (res.status === 403) {
+      showToast("Session Expired: Your account is no longer active.", "error");
+
+      setTimeout(() => {
         handleLogout();
-        return;
-      }
+      }, 500); 
+      return;
+    }
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || res.status);
@@ -138,27 +144,46 @@ const App = () => {
     .catch(() => {});
 }, [authHeaders, baseUrl, handleLogout]);
   
-  const fetchUserProfile = useCallback(() => {
-    const email = localStorage.getItem('userEmail');
-    if (!email) return;
+ const fetchUserProfile = useCallback(() => {
+  const email = localStorage.getItem('userEmail');
+  if (!email) return;
 
-    fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-      headers: authHeaders
+  fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+    headers: authHeaders
+  })
+    .then(async res => {
+      if (!res.ok) {
+        if (res.status === 403) {
+          showToast("Access Denied: Your account is inactive.", "error");
+          handleLogout();
+        } else {
+          const text = await res.text();
+          showToast(`Profile fetch failed: ${text || res.status}`, "error");
+        }
+        throw new Error("Profile fetch failed");
+      }
+      return res.json();
     })
-      .then(res => {
-        if (!res.ok) throw new Error("Profile access restricted");
-        return res.json();
-      })
-      .then(data => {
-        setUser({
-          name: data.businesspartnerfullname || data.name || email.split('@')[0],
-          role: data.role || "ROLE_ANALYST"
-        });
-      })
-      .catch(err => {
-        console.warn("Profile fetch skipped. Using session data.");
+    .then(data => {
+      if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+        setLoading(false);
+        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+      
+        setTimeout(() => {
+          handleLogout(); 
+        }, 500); 
+        return;
+      }
+
+      setUser({
+        name: data.businesspartnerfullname || data.name || email.split('@')[0],
+        role: data.role || "ROLE_ANALYST"
       });
-  }, [authHeaders, baseUrl]);
+    })
+    .catch(err => {
+      console.warn("Profile fetch skipped. Using session data.", err);
+    });
+}, [authHeaders, baseUrl]);
 
   useEffect(() => {
     const savedName = localStorage.getItem('userName');
@@ -393,7 +418,7 @@ const App = () => {
                       
                       if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
                         setLoading(false);
-                        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+                      //  showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
                         return;
                       }
                       
@@ -412,7 +437,9 @@ const App = () => {
                   } else {
                     setLoading(false);
                     if (res.status === 401) {
+                      setTimeout(() => {
                       showToast("Invalid Credentials: Please verify your email and password.", "error");
+                      }, 200); 
                     } else if (res.status === 403) {
                       showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
                     } else {
