@@ -120,7 +120,7 @@ const App = () => {
       setIsLoggedIn(false);
       setActiveTab('Dashboard');
       setSearchTerm('');
-    }, 150);
+    }, 2000);
   }, [showToast]);
 
   const fetchData = useCallback(async () => {
@@ -335,7 +335,7 @@ const App = () => {
       if (res.ok) {
         showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} Purged Successfully`, "success");
         setDeleteTarget(null);
-        fetchData(); 
+        fetchData();
       } else {
         const data = await res.json();
         showToast(data.message || "Deletion Failed", "error");
@@ -358,7 +358,7 @@ const App = () => {
     animation: { animateRotate: true, animateScale: true }
   };
 
-if (!isLoggedIn) {
+  if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
@@ -424,36 +424,40 @@ if (!isLoggedIn) {
                       localStorage.setItem('userEmail', email);
                       localStorage.setItem('userPassword', pass);
 
-                      const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-                        headers: { 'Authorization': basicAuth }
-                      });
+                      try {
+                        const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+                          headers: { 'Authorization': basicAuth }
+                        });
 
-                      if (profileRes.ok) {
-                        const data = await profileRes.json();
+                        if (profileRes.ok) {
+                          const data = await profileRes.json();
 
-                        if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
-                          setLoading(false);
-                          showToast("Access Denied: Account deactivated by Administrator.", "error");
-                          return;
+                          if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+                            setLoading(false);
+                            showToast("Access Denied: Account deactivated by Administrator.", "error");
+                            return;
+                          }
+
+                          const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                          const finalRole = data.role || "ROLE_VIEWER";
+
+                          localStorage.setItem('userName', finalName);
+                          localStorage.setItem('userRole', finalRole);
+                          setUser({ name: finalName, role: finalRole });
+                          setIsLoggedIn(true);
+                          showToast(`Welcome back, ${finalName}!`, "success");
+                        } else {
+                          setIsLoggedIn(true);
+                          showToast("Login Successful", "success");
                         }
-
-                        const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
-                        const finalRole = data.role || "ROLE_VIEWER";
-
-                        localStorage.setItem('userName', finalName);
-                        localStorage.setItem('userRole', finalRole);
-                        setUser({ name: finalName, role: finalRole });
+                      } catch (error) {
                         setIsLoggedIn(true);
-                        showToast(`Welcome back, ${finalName}!`, "success");
-                      } else {
-                        setIsLoggedIn(true);
-                        showToast("Login Successful", "success");
+                        showToast("Connected with limited profile access.", "warning");
                       }
-                      setLoading(false);
                     } else {
-                      setLoading(false);
                       showToast("Service Unavailable: Unable to reach the gateway.", "error");
                     }
+                    setLoading(false);
                   })
                   .catch(() => {
                     setLoading(false);
