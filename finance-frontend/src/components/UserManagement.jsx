@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, Edit3, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
   const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
+  const [users, setUsers] = useState([]);
    const currentUserEmail = useMemo(() => {
     if (!authHeaders?.Authorization) return null;
     try {
@@ -13,7 +14,6 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
       return null;
     }
   }, [authHeaders]);
-  const [users, setUsers] = useState([]);
 
   const [actionLoading, setActionLoading] = useState({});
 
