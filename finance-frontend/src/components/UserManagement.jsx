@@ -94,25 +94,24 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
   };
 
  const handleSubmit = (e) => {
-  e.preventDefault();
-  setError(null);
-  setSuccess(null);
-  setLoading(true);
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
 
-  const url = isEditing
-    ? `${baseUrl}/api/users/${selectedUserId}`
-    : `${baseUrl}/api/users`;
-  const method = isEditing ? 'PUT' : 'POST';
-  const payload = { ...newUser };
-  if (isEditing && (!payload.password || payload.password.trim() === "")) {
-    delete payload.password;
-  }
+    const url = isEditing ? `${baseUrl}/api/users/${selectedUserId}` : `${baseUrl}/api/users`;
+    const method = isEditing ? 'PUT' : 'POST';
+    const payload = { ...newUser };
+    
+    if (isEditing && (!payload.password || payload.password.trim() === "")) {
+      delete payload.password;
+    }
 
-  fetch(url, {
-    method,
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
+    fetch(url, {
+      method,
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
     .then(async (res) => {
       if (res.ok) {
         setSuccess(isEditing ? "Identity Updated" : "Identity Deployed");
@@ -120,30 +119,29 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
         setTimeout(() => handleCloseModal(), 1500);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        setError(errorData.message || "Action could not be completed.");
+        setError(errorData.message || "Action failed.");
       }
     })
-    .catch(() => setError("System unreachable. Check backend connection."))
+    .catch(() => setError("System unreachable."))
     .finally(() => setLoading(false));
-};
+  };
+    
  const handleToggleStatus = async (id, currentStatus) => { 
-  try {
-    setActionLoading(prev => ({ ...prev, [id]: true })); 
-    
-    const response = await fetch(`${baseUrl}/api/users/${id}/status`, { 
-      method: 'PATCH',
-      headers: { ...authHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !currentStatus })
-    });
-    
-    if (!response.ok) throw new Error("Failed to update status");
-    fetchUsers();
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setActionLoading(prev => ({ ...prev, [id]: false })); // 'id' use karo
-  }
-};
+    try {
+      setActionLoading(prev => ({ ...prev, [id]: true })); 
+      const response = await fetch(`${baseUrl}/api/users/${id}/status`, { 
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !currentStatus })
+      });
+      if (!response.ok) throw new Error();
+      fetchUsers();
+    } catch (e) {
+      console.error("Status Update Failed", e);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
  return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mt-8">
@@ -208,32 +206,37 @@ import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, 
                       {u.role?.replace('ROLE_', '')}
                     </span>
                   </td>
-                  <td className="px-6 py-5 bg-slate-50/50 text-center">
-                    <p className="text-[11px] font-bold text-slate-700 leading-none">
-                      {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      }) : 'Never'}
-                    </p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
-                      {u.lastLogin ? new Date(u.lastLogin).toLocaleTimeString('en-IN', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      }) : 'No Logs'}
-                    </p>
-                  </td>
+                 <td className="px-6 py-5 bg-slate-50/50 text-center">
+                  <p className="text-[11px] font-bold text-slate-700 leading-none">
+                    {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
+                      ? new Date(u.lastLogin).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })
+                      : 'Never'}
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                    {u.lastLogin && !isNaN(new Date(u.lastLogin).getTime())
+                      ? new Date(u.lastLogin).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'No Logs'}
+                  </p>
+                </td>
                   <td className="px-6 py-5 bg-slate-50/50 text-center">
                  <button
                   onClick={() => handleToggleStatus(u.id, u.active)}
                   disabled={u.email === currentUserEmail || actionLoading[u.id]}
+                  className="flex items-center gap-2 mx-auto bg-transparent border-none cursor-pointer disabled:opacity-50"
                 >
                   {actionLoading[u.id] ? (
                     <Loader2 className="animate-spin" size={12} />
                   ) : (
                     <>
                       <div className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                      {u.active ? 'Active' : 'Inactive'}
+                      <span className="text-[10px] font-bold uppercase">{u.active ? 'Active' : 'Inactive'}</span>
                     </>
                   )}
                 </button>
