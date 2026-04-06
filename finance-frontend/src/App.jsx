@@ -44,19 +44,19 @@ const App = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
   const [summary, setSummary] = useState({ totalIncome: 0, totalExpense: 0, netBalance: 0, categoryBreakdown: {} });
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [user, setUser] = useState({ 
-    name: localStorage.getItem('userName') || "...", 
-    role: localStorage.getItem('userRole') || "..." 
+
+  const [user, setUser] = useState({
+    name: localStorage.getItem('userName') || "...",
+    role: localStorage.getItem('userRole') || "..."
   });
-  
+
   const [notification, setNotification] = useState(null);
   const [isRoleOpen, setIsRoleOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -71,13 +71,13 @@ const App = () => {
   const authHeaders = useMemo(() => {
     const email = localStorage.getItem('userEmail');
     const pass = localStorage.getItem('userPassword');
-  
+
     if (!email || !pass) {
       return {
         'Content-Type': 'application/json'
       };
     }
-  
+
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Basic ' + btoa(`${email}:${pass}`)
@@ -89,9 +89,9 @@ const App = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-   const fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     const config = { headers: authHeaders };
-  
+
     fetch(`${baseUrl}/api/records`, config)
       .then(async res => {
         if (!res.ok) {
@@ -105,7 +105,7 @@ const App = () => {
         setRecords(sorted);
       })
       .catch(err => showToast(`Records sync failed: ${err.message}`, "error"));
-  
+
     fetch(`${baseUrl}/api/records/summary`, config)
       .then(async res => {
         if (!res.ok) {
@@ -119,37 +119,37 @@ const App = () => {
       })
       .catch(err => showToast(`Summary sync failed: ${err.message}`, "error"));
   }, [authHeaders, baseUrl]);
-  
-      const fetchUserProfile = useCallback(() => {
-      const email = localStorage.getItem('userEmail');
-      if (!email) return;
-    
-      fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-        headers: authHeaders
+
+  const fetchUserProfile = useCallback(() => {
+    const email = localStorage.getItem('userEmail');
+    if (!email) return;
+
+    fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+      headers: authHeaders
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Profile access restricted");
+        return res.json();
       })
-        .then(res => {
-          if (!res.ok) throw new Error("Profile access restricted");
-          return res.json();
-        })
-        .then(data => {
-          setUser({
-            name: data.businesspartnerfullname || data.name || email.split('@')[0], 
-            role: data.role || "ROLE_ANALYST"
-          });
-        })
-        .catch(err => {
-          console.warn("Profile fetch skipped. Using session data.");
+      .then(data => {
+        setUser({
+          name: data.businesspartnerfullname || data.name || email.split('@')[0],
+          role: data.role || "ROLE_ANALYST"
         });
-    }, [authHeaders, baseUrl]);
-  
-   useEffect(() => {
+      })
+      .catch(err => {
+        console.warn("Profile fetch skipped. Using session data.");
+      });
+  }, [authHeaders, baseUrl]);
+
+  useEffect(() => {
     const savedName = localStorage.getItem('userName');
     const savedRole = localStorage.getItem('userRole');
-    
+
     if (savedName && savedRole && user.name === "...") {
       setUser({ name: savedName, role: savedRole });
     }
-  
+
     if (isLoggedIn) {
       fetchData();
       fetchUserProfile();
@@ -157,24 +157,24 @@ const App = () => {
   }, [isLoggedIn]);
 
   useEffect(() => {
-  const currentTab = navItems.find(item => item.name === activeTab);
-  if (currentTab && user.role && !currentTab.roles.includes(user.role)) {
-    setActiveTab('Dashboard');
-    setSearchTerm(''); 
-    setCurrentPage(1);
-  }
- }, [user.role, activeTab]);
+    const currentTab = navItems.find(item => item.name === activeTab);
+    if (currentTab && user.role && !currentTab.roles.includes(user.role)) {
+      setActiveTab('Dashboard');
+      setSearchTerm('');
+      setCurrentPage(1);
+    }
+  }, [user.role, activeTab]);
 
   const filteredRecords = useMemo(() => {
     return records.filter(record => {
       const term = searchTerm.toLowerCase();
       const formattedDate = record.date
-      ? new Date(record.date).toLocaleDateString('en-IN', {
+        ? new Date(record.date).toLocaleDateString('en-IN', {
           day: '2-digit',
           month: 'short',
           year: 'numeric'
         }).toLowerCase()
-      : '';
+        : '';
 
       return (
         record.category?.toLowerCase().includes(term) ||
@@ -197,119 +197,119 @@ const App = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
-  
 
-const handleSubmit = (e) => {
-  e.preventDefault();
 
-  if (user.role === 'ROLE_VIEWER') return showToast("Permission Denied", "error");
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  if (!formData.amount || !formData.category) {
-    return showToast("Fields cannot be empty", "error");
-  }
+    if (user.role === 'ROLE_VIEWER') return showToast("Permission Denied", "error");
 
-  const isUpdate = !!formData.id;
-  const url = isUpdate ? `${baseUrl}/api/records/${formData.id}` : `${baseUrl}/api/records`;
-  const method = isUpdate ? 'PUT' : 'POST';
-
-  const payload = { 
-    ...formData, 
-    amount: parseFloat(formData.amount), 
-    date: new Date(formData.date).toISOString() 
-  };
-
-  fetch(url, { 
-    method: method, 
-    headers: authHeaders, 
-    body: JSON.stringify(payload) 
-  })
-    .then(res => res.json().then(data => ({ ok: res.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok) {
-        if (isUpdate) {
-          setRecords(prev => prev.map(txn => txn.id === data.id ? data : txn));
-        } else {
-          setRecords(prev => [data, ...prev]);
-        }
-        setShowForm(false);
-        showToast(isUpdate ? "Transaction Updated" : "Transaction Logged", "success");
-        setFormData({ 
-          amount: '', category: '', description: '', 
-          type: 'EXPENSE', date: new Date().toISOString().split('T')[0] 
-        });
-      } else {
-        showToast("Failed to Save: Server Error", "error");
-      }
-    })
-    .catch(() => showToast("Network Error", "error"));
- };
-  const handleToggleUserStatus = async (userId, currentStatus) => {
-  if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
-
-  try {
-    const res = await fetch(`${baseUrl}/api/users/${userId}/toggle-status`, {
-      method: 'PATCH',
-      headers: authHeaders
-    });
-
-    if (res.ok) {
-      showToast(`User is now ${currentStatus ? 'Inactive' : 'Active'}`, "success");
-      fetchData(); 
-    } else {
-      const errorData = await res.json().catch(() => ({}));
-      showToast(errorData.message || "Failed to update status", "error");
+    if (!formData.amount || !formData.category) {
+      return showToast("Fields cannot be empty", "error");
     }
-  } catch (err) {
-    showToast("Connection Error", "error");
-  }
- };
+
+    const isUpdate = !!formData.id;
+    const url = isUpdate ? `${baseUrl}/api/records/${formData.id}` : `${baseUrl}/api/records`;
+    const method = isUpdate ? 'PUT' : 'POST';
+
+    const payload = {
+      ...formData,
+      amount: parseFloat(formData.amount),
+      date: new Date(formData.date).toISOString()
+    };
+
+    fetch(url, {
+      method: method,
+      headers: authHeaders,
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok) {
+          if (isUpdate) {
+            setRecords(prev => prev.map(txn => txn.id === data.id ? data : txn));
+          } else {
+            setRecords(prev => [data, ...prev]);
+          }
+          setShowForm(false);
+          showToast(isUpdate ? "Transaction Updated" : "Transaction Logged", "success");
+          setFormData({
+            amount: '', category: '', description: '',
+            type: 'EXPENSE', date: new Date().toISOString().split('T')[0]
+          });
+        } else {
+          showToast("Failed to Save: Server Error", "error");
+        }
+      })
+      .catch(() => showToast("Network Error", "error"));
+  };
+  const handleToggleUserStatus = async (userId, currentStatus) => {
+    if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
+
+    try {
+      const res = await fetch(`${baseUrl}/api/users/${userId}/toggle-status`, {
+        method: 'PATCH',
+        headers: authHeaders
+      });
+
+      if (res.ok) {
+        showToast(`User is now ${currentStatus ? 'Inactive' : 'Active'}`, "success");
+        fetchData();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.message || "Failed to update status", "error");
+      }
+    } catch (err) {
+      showToast("Connection Error", "error");
+    }
+  };
 
   const handleDeleteRequest = (id, type = 'record') => {
     if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
     setDeleteTarget({ id, type });
   };
 
-const confirmDeleteAction = async () => {
-  if (!deleteTarget) return;
-  const { id, type } = deleteTarget;
+  const confirmDeleteAction = async () => {
+    if (!deleteTarget) return;
+    const { id, type } = deleteTarget;
 
-  const url = type === 'user'
-    ? `${baseUrl}/api/users/${id}`
-    : `${baseUrl}/api/records/${id}`;
+    const url = type === 'user'
+      ? `${baseUrl}/api/users/${id}`
+      : `${baseUrl}/api/records/${id}`;
 
-  try {
-    const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
-    if (res.ok) {
-      if (type === 'user') {
-        fetchData();
-      } else {
-        setRecords(prev => prev.filter(txn => txn.id !== id));
-        if ((filteredRecords.length - 1) % recordsPerPage === 0 && currentPage > 1) {
-          setCurrentPage(p => p - 1);
+    try {
+      const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
+      if (res.ok) {
+        if (type === 'user') {
+          fetchData();
+        } else {
+          setRecords(prev => prev.filter(txn => txn.id !== id));
+          if ((filteredRecords.length - 1) % recordsPerPage === 0 && currentPage > 1) {
+            setCurrentPage(p => p - 1);
+          }
         }
-      }
 
-      setDeleteTarget(null);
-      showToast(`${type === 'user' ? 'User' : 'Transaction'} deleted successfully`, "success");
-    } else {
-      const errorData = await res.json().catch(() => ({}));
-      showToast(errorData.message || "Deletion failed", "error");
+        setDeleteTarget(null);
+        showToast(`${type === 'user' ? 'User' : 'Transaction'} deleted successfully`, "success");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.message || "Deletion failed", "error");
+      }
+    } catch (err) {
+      showToast("Network connection failed", "error");
     }
-  } catch (err) {
-    showToast("Network connection failed", "error");
-  }
-};
-  
-const handleLogout = () => {
-  localStorage.clear();
-  setUser({ name: "...", role: "..." });
-  setLoginEmail('');    
-  setLoginPassword(''); 
-  setIsLoggedIn(false);
-  setActiveTab('Dashboard');
-  setSearchTerm('');
-  showToast("Logged out successfully", "success"); 
-};
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setUser({ name: "...", role: "..." });
+    setLoginEmail('');
+    setLoginPassword('');
+    setIsLoggedIn(false);
+    setActiveTab('Dashboard');
+    setSearchTerm('');
+    showToast("Logged out successfully", "success");
+  };
 
   const pieChartOptions = {
     maintainAspectRatio: false,
@@ -323,45 +323,84 @@ const handleLogout = () => {
     hover: { mode: 'nearest', intersect: true },
     animation: { animateRotate: true, animateScale: true }
   };
-   if (!isLoggedIn) {
+  if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
-  <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[24px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-4 border-white">
-    F
-  </div>
-  <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900 mt-4">Welcome Back</h2>
-  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Enter your credentials to access FinanceOS</p>
-  <div className="space-y-5 text-left">
-    <div>
-      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
-      <input 
-        type="email" 
-        placeholder="name@finance.com" 
-        className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
-        value={loginEmail}
-        onChange={(e) => setLoginEmail(e.target.value)}
-      />
-    </div>
-    <div className="relative">
-      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
-      <input 
-        type={showPassword ? "text" : "password"} 
-        placeholder="••••••••••••" 
-        className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
-        value={loginPassword}
-        onChange={(e) => setLoginPassword(e.target.value)}
-      />
-      <button 
-        type="button"
-        onClick={() => setShowPassword(!showPassword)}
-        className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2 outline-none"
-      >
-        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
-  </div>
-</div>
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-[6px] border-slate-900">
+            F
+          </div>
+          <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900 mt-4">Welcome Back</h2>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Enter your credentials to access FinanceOS</p>
+          <div className="space-y-5 text-left">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
+              <input
+                type="email"
+                placeholder="name@finance.com"
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
+            </div>
+            <div className="relative">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••••••"
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-bold text-slate-700"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2 outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <button
+              disabled={loading}
+              onClick={() => {
+                setLoading(true);
+                const email = loginEmail;
+                const pass = loginPassword;
+                const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+                fetch(`${baseUrl}/api/records`, {
+                  method: 'GET',
+                  headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
+                })
+                  .then(async res => {
+                    if (res.ok) {
+                      localStorage.setItem('userEmail', email);
+                      localStorage.setItem('userPassword', pass);
+                      fetch(`${baseUrl}/api/users/profile?email=${email}`, { headers: { 'Authorization': basicAuth } })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(data => {
+                          if (data) {
+                            const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                            const finalRole = data.role || "ROLE_VIEWER";
+                            localStorage.setItem('userName', finalName);
+                            localStorage.setItem('userRole', finalRole);
+                            setUser({ name: finalName, role: finalRole });
+                          }
+                          setIsLoggedIn(true);
+                          setLoading(false);
+                        })
+                        .catch(() => { setIsLoggedIn(true); setLoading(false); });
+                    } else {
+                      setLoading(false);
+                    }
+                  })
+                  .catch(() => setLoading(false));
+              }}
+              className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : "Secure Login"}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -369,37 +408,37 @@ const handleLogout = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-sans text-slate-900 antialiased overflow-hidden">
       {searchTerm.length === 0 && (
-       <aside className="w-72 bg-slate-900 m-4 rounded-[32px] flex flex-col p-8 text-white shadow-2xl hidden lg:flex animate-in fade-in slide-in-from-left-4 duration-500">
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-xl italic cursor-default">F</div>
-              <span className="text-xl font-bold tracking-tight text-white cursor-default">FinanceOS</span>
-            </div>
-          
-            <nav className="space-y-2 flex-grow">
-              {navItems.filter(item => item.roles.includes(user.role)).map((item) => (
+        <aside className="w-72 bg-slate-900 m-4 rounded-[32px] flex flex-col p-8 text-white shadow-2xl hidden lg:flex animate-in fade-in slide-in-from-left-4 duration-500">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-xl italic cursor-default">F</div>
+            <span className="text-xl font-bold tracking-tight text-white cursor-default">FinanceOS</span>
+          </div>
+
+          <nav className="space-y-2 flex-grow">
+            {navItems.filter(item => item.roles.includes(user.role)).map((item) => (
+              <button
+                key={item.name}
+                onClick={() => { setActiveTab(item.name); setSearchTerm(''); }}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === item.name ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+              >
+                {item.icon} {item.name}
+              </button>
+            ))}
+
+            {user.role === 'ROLE_ADMIN' && (
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 px-4">Management</p>
                 <button
-                  key={item.name}
-                  onClick={() => { setActiveTab(item.name); setSearchTerm(''); }}
-                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === item.name ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  onClick={() => { setActiveTab('Provision'); setSearchTerm(''); }}
+                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === 'Provision' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                 >
-                  {item.icon} {item.name}
+                  <UserPlus size={18} /> Provision User
                 </button>
-              ))}
-          
-              {user.role === 'ROLE_ADMIN' && (
-                <div className="mt-8 pt-8 border-t border-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 px-4">Management</p>
-                  <button
-                    onClick={() => { setActiveTab('Provision'); setSearchTerm(''); }}
-                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === 'Provision' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                  >
-                    <UserPlus size={18} /> Provision User
-                  </button>
-                </div>
-              )} 
-            </nav>
-          
-           <div className="mt-auto pt-6 border-t border-white/10">
+              </div>
+            )}
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-white/10">
             <div className="flex items-center justify-between gap-3 group/profile">
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold shadow-lg shadow-indigo-500/20 shrink-0 uppercase">
@@ -414,8 +453,8 @@ const handleLogout = () => {
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={handleLogout} 
+              <button
+                onClick={handleLogout}
                 className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all border-none cursor-pointer text-[9px] font-black uppercase tracking-widest shrink-0"
               >
                 Logout
@@ -433,7 +472,7 @@ const handleLogout = () => {
               Session: {user.role?.replace('ROLE_', '')}
             </p>
           </div>
-          
+
           <div className="flex gap-4 items-center">
             {activeTab === 'Dashboard' && (
               <div className={`relative flex items-center transition-all duration-500 ${searchTerm.length > 0 ? 'scale-110 -translate-x-12' : ''}`}>
@@ -450,11 +489,11 @@ const handleLogout = () => {
                 )}
               </div>
             )}
-        
+
             {searchTerm.length === 0 && (
               <div className="relative animate-in fade-in duration-300">
-                <button 
-                  onClick={() => user.role === 'ROLE_ADMIN' && setIsRoleOpen(!isRoleOpen)} 
+                <button
+                  onClick={() => user.role === 'ROLE_ADMIN' && setIsRoleOpen(!isRoleOpen)}
                   className={`flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-2xl shadow-sm border border-slate-100 transition-all outline-none ${user.role === 'ROLE_ADMIN' ? 'hover:border-indigo-500 cursor-pointer' : 'cursor-default'}`}
                 >
                   <div className="p-1.5 bg-indigo-50 rounded-lg">
@@ -468,24 +507,24 @@ const handleLogout = () => {
                     <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
                   )}
                 </button>
-        
+
                 {isRoleOpen && user.role === 'ROLE_ADMIN' && (
                   <>
                     <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsRoleOpen(false)}></div>
                     <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-slate-50 p-2 z-20 animate-in fade-in zoom-in-95">
                       {['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'].map((role) => (
-                        <button 
-                          key={role} 
-                          onClick={() => { 
-                            setUser({ ...user, role }); 
-                            setIsRoleOpen(false); 
-                            setActiveTab('Dashboard'); 
-                            setSearchTerm('');     
-                            setCurrentPage(1);     
-                          }} 
+                        <button
+                          key={role}
+                          onClick={() => {
+                            setUser({ ...user, role });
+                            setIsRoleOpen(false);
+                            setActiveTab('Dashboard');
+                            setSearchTerm('');
+                            setCurrentPage(1);
+                          }}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border-none ${user.role === role ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          {role.replace('ROLE_', '')} 
+                          {role.replace('ROLE_', '')}
                           {user.role === role && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
                         </button>
                       ))}
@@ -572,9 +611,9 @@ const handleLogout = () => {
               <div className="h-96">
                 {(() => {
                   const last7 = [...records]
-                  .sort((a, b) => new Date(a.date) - new Date(b.date))
-                  .slice(-7);
-          
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))
+                    .slice(-7);
+
                   return (
                     <Line
                       data={{
@@ -619,26 +658,26 @@ const handleLogout = () => {
 
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
-             <UserManagement
-                authHeaders={authHeaders} 
+              <UserManagement
+                authHeaders={authHeaders}
                 onDeleteUser={(id) => {
-                handleDeleteRequest(id, 'user');
-                return new Promise((resolve) => {
-                  const interval = setInterval(() => {
-                    if (!deleteTarget) {
-                      clearInterval(interval);
-                      resolve();
-                    }
-                  }, 50);
-                });
-              }}
-            />
+                  handleDeleteRequest(id, 'user');
+                  return new Promise((resolve) => {
+                    const interval = setInterval(() => {
+                      if (!deleteTarget) {
+                        clearInterval(interval);
+                        resolve();
+                      }
+                    }, 50);
+                  });
+                }}
+              />
             </div>
           )}
         </div>
       </main>
 
- {notification && (
+      {notification && (
         <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
           <div className={`
             relative overflow-hidden min-w-[320px] px-6 py-5 rounded-[28px] 
@@ -646,11 +685,11 @@ const handleLogout = () => {
             flex items-center gap-5 bg-white/90
             ${notification.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}
           `}>
-            
+
             <div className={`
               w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-              ${notification.type === 'success' 
-                ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' 
+              ${notification.type === 'success'
+                ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
                 : 'bg-rose-500 text-white shadow-rose-200 animate-pulse'}
             `}>
               {notification.type === 'success' ? <CheckCircle size={24} /> : <XCircle size={24} />}
@@ -665,7 +704,7 @@ const handleLogout = () => {
               </p>
             </div>
 
-            <button 
+            <button
               onClick={() => setNotification(null)}
               className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
             >
@@ -680,7 +719,8 @@ const handleLogout = () => {
             </div>
           </div>
 
-          <style dangerouslySetInnerHTML={{ __html: `
+          <style dangerouslySetInnerHTML={{
+            __html: `
             @keyframes shrink {
               from { width: 100%; }
               to { width: 0%; }
@@ -695,26 +735,26 @@ const handleLogout = () => {
             <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-100/50">
               <XCircle size={48} className="animate-in zoom-in duration-300" />
             </div>
-      
+
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">
               "Action cannot be undone."
             </p>
-      
+
             <div className="flex gap-4">
-              <button 
-                onClick={() => setDeleteTarget(null)} 
+              <button
+                onClick={() => setDeleteTarget(null)}
                 className="flex-1 py-5 bg-slate-50 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all cursor-pointer outline-none border border-slate-100"
               >
                 Cancel
               </button>
-      
-              <button 
+
+              <button
                 onClick={async () => {
                   setLoading(true);
                   await confirmDeleteAction();
                   setLoading(false);
-                }} 
+                }}
                 disabled={loading}
                 className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed outline-none border-none flex items-center justify-center gap-2"
               >
