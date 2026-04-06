@@ -335,7 +335,7 @@ const App = () => {
       if (res.ok) {
         showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} Purged Successfully`, "success");
         setDeleteTarget(null);
-        fetchData(); S
+        fetchData(); 
       } else {
         const data = await res.json();
         showToast(data.message || "Deletion Failed", "error");
@@ -357,7 +357,8 @@ const App = () => {
     hover: { mode: 'nearest', intersect: true },
     animation: { animateRotate: true, animateScale: true }
   };
-  if (!isLoggedIn) {
+
+if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
@@ -407,7 +408,6 @@ const App = () => {
                   headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
                 })
                   .then(async res => {
-                    // Handle Incorrect Credentials (401) or Inactive Status (403) from Backend
                     if (res.status === 401) {
                       setLoading(false);
                       showToast("Invalid Credentials: Please verify your email and password.", "error");
@@ -444,8 +444,6 @@ const App = () => {
                         localStorage.setItem('userRole', finalRole);
                         setUser({ name: finalName, role: finalRole });
                         setIsLoggedIn(true);
-
-                        // SUCCESS TOAST
                         showToast(`Welcome back, ${finalName}!`, "success");
                       } else {
                         setIsLoggedIn(true);
@@ -480,7 +478,6 @@ const App = () => {
             <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-xl italic cursor-default">F</div>
             <span className="text-xl font-bold tracking-tight text-white cursor-default">FinanceOS</span>
           </div>
-
           <nav className="space-y-2 flex-grow">
             {navItems.filter(item => item.roles.includes(user.role)).map((item) => (
               <button
@@ -491,7 +488,6 @@ const App = () => {
                 {item.icon} {item.name}
               </button>
             ))}
-
             {user.role === 'ROLE_ADMIN' && (
               <div className="mt-8 pt-8 border-t border-white/5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 px-4">Management</p>
@@ -504,7 +500,6 @@ const App = () => {
               </div>
             )}
           </nav>
-
           <div className="mt-auto pt-6 border-t border-white/10">
             <div className="flex items-center justify-between gap-3 group/profile">
               <div className="flex items-center gap-3 overflow-hidden">
@@ -531,7 +526,6 @@ const App = () => {
           </div>
         </aside>
       )}
-
       <main className={`flex-grow p-8 overflow-y-auto relative transition-all duration-500 ${searchTerm.length > 0 ? 'bg-indigo-50/30' : ''}`}>
         <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 relative z-50">
           <div className={`transition-all duration-500 ${searchTerm.length > 0 ? 'opacity-40 blur-[2px]' : 'opacity-100'}`}>
@@ -540,7 +534,6 @@ const App = () => {
               Session: {user.role?.replace('ROLE_', '')}
             </p>
           </div>
-
           <div className="flex gap-4 items-center">
             {activeTab === 'Dashboard' && (
               <div className={`relative flex items-center transition-all duration-500 ease-out ${searchTerm.length > 0 ? 'scale-105 -translate-x-8' : ''}`}>
@@ -550,8 +543,7 @@ const App = () => {
                 <input
                   type="text"
                   placeholder="Search transactions..."
-                  className={`pl-14 pr-24 py-4 bg-white rounded-2xl border-none shadow-2xl focus:ring-4 ring-indigo-500/10 text-sm font-bold text-slate-700 outline-none transition-all duration-500 ${searchTerm.length > 0 ? 'w-[500px] ring-2 ring-indigo-500' : 'w-80'
-                    }`}
+                  className={`pl-14 pr-24 py-4 bg-white rounded-2xl border-none shadow-2xl focus:ring-4 ring-indigo-500/10 text-sm font-bold text-slate-700 outline-none transition-all duration-500 ${searchTerm.length > 0 ? 'w-[500px] ring-2 ring-indigo-500' : 'w-80'}`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -566,7 +558,6 @@ const App = () => {
                 )}
               </div>
             )}
-
             {searchTerm.length === 0 && (
               <div className="relative animate-in fade-in duration-300">
                 <button
@@ -584,7 +575,6 @@ const App = () => {
                     <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
                   )}
                 </button>
-
                 {isRoleOpen && user.role === 'ROLE_ADMIN' && (
                   <>
                     <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsRoleOpen(false)}></div>
@@ -612,7 +602,6 @@ const App = () => {
             )}
           </div>
         </header>
-
         <div className="grid grid-cols-12 gap-8 relative">
           {activeTab === 'Dashboard' && (
             <>
@@ -625,7 +614,6 @@ const App = () => {
               )}
               <div className={`transition-all duration-700 ease-in-out ${searchTerm.length > 0 ? 'col-span-12 mt-4' : 'col-span-12 lg:col-span-8'}`}>
                 <div className={`bg-white rounded-[40px] transition-all duration-500 shadow-sm border border-slate-100 ${searchTerm.length > 0 ? 'shadow-2xl ring-2 ring-indigo-500/10 overflow-hidden' : ''}`}>
-
                   {searchTerm.length > 0 && (
                     <div className="px-10 py-8 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/30 animate-in slide-in-from-top-4 duration-500">
                       <div className="flex items-center gap-4">
@@ -645,7 +633,6 @@ const App = () => {
                       </div>
                     </div>
                   )}
-
                   {searchTerm.length > 0 && filteredRecords.length === 0 ? (
                     <div className="p-32 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500">
                       <div className="w-28 h-28 bg-rose-50/50 rounded-[40px] flex items-center justify-center mb-8 ring-1 ring-rose-100 shadow-inner group">
@@ -706,7 +693,6 @@ const App = () => {
               )}
             </>
           )}
-
           {activeTab === 'Analytics' && (
             <div className="col-span-12 bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm animate-in fade-in duration-500">
               <h3 className="text-xl font-bold mb-6">Cashflow Analytics</h3>
@@ -715,7 +701,6 @@ const App = () => {
                   const last7 = [...records]
                     .sort((a, b) => new Date(a.date) - new Date(b.date))
                     .slice(-7);
-
                   return (
                     <Line
                       data={{
@@ -741,7 +726,6 @@ const App = () => {
               </div>
             </div>
           )}
-
           {activeTab === 'Wallet' && (
             <div className="col-span-12 md:col-span-5 bg-slate-900 p-10 rounded-[40px] relative overflow-hidden shadow-2xl text-white animate-in zoom-in-95 duration-500">
               <CreditCard className="absolute -right-10 -bottom-10 text-white/5" size={300} />
@@ -757,7 +741,6 @@ const App = () => {
               </div>
             </div>
           )}
-
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
               <UserManagement
@@ -778,42 +761,19 @@ const App = () => {
           )}
         </div>
       </main>
-
       {notification && (
         <div className="fixed top-10 right-10 z-[1000] flex items-center p-5 bg-white rounded-[32px] shadow-2xl border border-slate-100 min-w-[320px] animate-in slide-in-from-right-full fade-in duration-500 ease-out overflow-hidden">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${notification.type === 'success'
-            ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
-            : notification.type === 'error'
-              ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
-              : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'
-            }`}>
-            {notification.type === 'success'
-              ? <CheckCircle size={24} />
-              : notification.type === 'error'
-                ? <XCircle size={24} />
-                : <AlertCircle size={24} />
-            }
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${notification.type === 'success' ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' : notification.type === 'error' ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse' : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'}`}>
+            {notification.type === 'success' ? <CheckCircle size={24} /> : notification.type === 'error' ? <XCircle size={24} /> : <AlertCircle size={24} />}
           </div>
-
           <div className="flex-grow ml-4 text-left">
-            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success'
-              ? 'text-emerald-600'
-              : notification.type === 'error'
-                ? 'text-rose-600'
-                : 'text-orange-600'
-              }`}>
-              {notification.type === 'success'
-                ? 'Success Verified'
-                : notification.type === 'error'
-                  ? 'System Error'
-                  : 'Access Blocked'
-              }
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : notification.type === 'error' ? 'text-rose-600' : 'text-orange-600'}`}>
+              {notification.type === 'success' ? 'Success Verified' : notification.type === 'error' ? 'System Error' : 'Access Blocked'}
             </h4>
             <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
               {notification.message}
             </p>
           </div>
-
           <button
             onClick={() => setNotification(null)}
             aria-label="Dismiss notification"
@@ -821,38 +781,23 @@ const App = () => {
           >
             <X size={18} />
           </button>
-
           <div className="absolute bottom-0 left-0 h-1.5 w-full bg-slate-100">
             <div
-              className={`h-full transition-all ease-linear ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'
-                }`}
+              className={`h-full transition-all ease-linear ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'}`}
               style={{ animation: 'shrink 3s linear forwards' }}
             />
           </div>
-
-          <style dangerouslySetInnerHTML={{
-            __html: `
-        @keyframes shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `
-          }} />
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes shrink { from { width: 100%; } to { width: 0%; } }` }} />
         </div>
       )}
-
       {deleteTarget && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center animate-in zoom-in-95 duration-200">
             <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-100/50">
               <XCircle size={48} className="animate-in zoom-in duration-300" />
             </div>
-
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">
-              "Action cannot be undone."
-            </p>
-
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">"Action cannot be undone."</p>
             <div className="flex gap-4">
               <button
                 onClick={() => setDeleteTarget(null)}
@@ -860,7 +805,6 @@ const App = () => {
               >
                 Cancel
               </button>
-
               <button
                 onClick={async () => {
                   setLoading(true);
@@ -870,14 +814,7 @@ const App = () => {
                 disabled={loading}
                 className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed outline-none border-none flex items-center justify-center gap-2"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
+                {loading ? <><Loader2 className="animate-spin" size={16} /> Deleting...</> : "Delete"}
               </button>
             </div>
           </div>
@@ -885,6 +822,7 @@ const App = () => {
       )}
     </div>
   );
+
 };
 
 export default App;
