@@ -1,23 +1,25 @@
 import React from 'react';
-import { Filter, CheckCircle2, Trash2, Plus, X, CreditCard, Tag, FileText, Edit3, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Filter, CheckCircle2, Trash2, Plus, X, CreditCard, Tag, FileText, Edit3, ChevronLeft, ChevronRight, Calendar, Loader2 } from 'lucide-react';
 
-const FinancialLog = ({
-  records, totalRecords, user, onDelete, showForm, setShowForm,
-  formData, setFormData, handleSubmit,
-  currentPage, setCurrentPage, totalPages
-}) => {
+const [actionLoading, setActionLoading] = React.useState({});
 
-  const handleEditInitiate = (record) => {
-    setFormData({ 
-      id: record.id,
-      amount: record.amount.toString(),
-      category: record.category,
-      description: record.description || '',
-      type: record.type,
-      date: record.date ? record.date.split('T')[0] : new Date().toISOString().split('T')[0]
-    });
-    setShowForm(true);
-  };
+  const FinancialLog = ({
+    records, totalRecords, user, onDelete, showForm, setShowForm,
+    formData, setFormData, handleSubmit,
+    currentPage, setCurrentPage, totalPages
+  }) => {
+
+    const handleEditInitiate = (record) => {
+      setFormData({ 
+        id: record.id,
+        amount: record.amount.toString(),
+        category: record.category,
+        description: record.description || '',
+        type: record.type,
+        date: record.date ? record.date.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+      setShowForm(true);
+    };
 
   const handleCloseForm = () => {
     setShowForm(false);
@@ -30,7 +32,7 @@ const FinancialLog = ({
         <h3 className="font-bold flex items-center gap-2 text-slate-800 cursor-default">
           <Filter size={16} className="text-slate-400" /> Financial Ledger
         </h3>
-        {user.role === 'ADMIN' && (
+       {user.role === 'ROLE_ADMIN' && (
           <button
             onClick={() => setShowForm(true)}
             className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 cursor-pointer outline-none active:scale-95 border-none"
@@ -49,7 +51,7 @@ const FinancialLog = ({
               <th className="px-6 py-5">Details</th>
               <th className="px-6 py-5">Type</th>
               <th className="px-6 py-5 text-right">Value</th>
-              {user.role === 'ADMIN' && <th className="px-6 py-4 text-center">Actions</th>}
+              {user.role === 'ROLE_ADMIN' && <th className="px-6 py-4 text-center">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -78,14 +80,29 @@ const FinancialLog = ({
                 <td className={`px-6 py-5 text-right font-black text-base ${r.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                   ₹{Number(r.amount).toLocaleString()}
                 </td>
-                {user.role === 'ADMIN' && (
+                {user.role === 'ROLE_ADMIN' && (
                   <td className="px-6 py-5 text-center flex items-center justify-center gap-1">
-                    <button onClick={() => handleEditInitiate(r)} className="p-2 text-slate-300 hover:text-indigo-600 transition-colors cursor-pointer outline-none border-none bg-transparent">
-                      <Edit3 size={18} />
-                    </button>
-                    <button onClick={() => onDelete(r.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer outline-none border-none bg-transparent">
-                      <Trash2 size={18} />
-                    </button>
+                    <button
+                        onClick={() => handleEditInitiate(r)}
+                        className="p-2 text-slate-300 hover:text-indigo-600 transition-colors cursor-pointer outline-none border-none bg-transparent flex items-center justify-center"
+                        disabled={actionLoading[r.id]}
+                      >
+                        {actionLoading[r.id] ? <Loader2 className="animate-spin text-indigo-600" size={18} /> : <Edit3 size={18} />}
+                  </button>
+                   <button
+                      onClick={async () => {
+                        try {
+                          setActionLoading(prev => ({ ...prev, [r.id]: true }));
+                          await onDelete(r.id);
+                        } finally {
+                          setActionLoading(prev => ({ ...prev, [r.id]: false }));
+                        }
+                      }}
+                      className="p-2 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer outline-none border-none bg-transparent flex items-center justify-center"
+                      disabled={actionLoading[r.id]}
+                    >
+                      {actionLoading[r.id] ? <Loader2 className="animate-spin text-rose-500" size={18} /> : <Trash2 size={18} />}
+                  </button>
                   </td>
                 )}
               </tr>
