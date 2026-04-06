@@ -85,121 +85,121 @@ const App = () => {
   }, [isLoggedIn]);
 
   const showToast = (message, type = 'success') => {
-  let icon;
-  switch(type) {
-    case 'success':
-      icon = <CheckCircle className="w-5 h-5 mr-2 text-green-600" />;
-      break;
-    case 'error':
-      icon = <XCircle className="w-5 h-5 mr-2 text-red-600" />;
-      break;
-    case 'blocked':
-      icon = <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />;
-      break;
-    default:
-      icon = null;
-  }
-
-  setNotification({ message, type, icon });
-
-  setTimeout(() => setNotification(null), 3000); // 3 seconds
-};
-
-const handleLogout = useCallback(() => {
-  showToast("Logged out successfully", "success");
-
-  setTimeout(() => {
-    localStorage.clear();
-    setUser({ name: "...", role: "..." });
-    setLoginEmail('');
-    setLoginPassword('');
-    setIsLoggedIn(false);
-    setActiveTab('Dashboard');
-    setSearchTerm('');
-  }, 600); 
-}, []);
-
- const fetchData = useCallback(() => {
-  const config = { headers: authHeaders };
-
-  fetch(`${baseUrl}/api/records`, config)
-    .then(async res => {
-     if (res.status === 403) {
-      showToast("Session Expired: Your account is no longer active.", "error");
-
-      setTimeout(() => {
-        handleLogout();
-      }, 300); 
-      return;
+    let icon;
+    switch (type) {
+      case 'success':
+        icon = <CheckCircle className="w-5 h-5 mr-2 text-green-600" />;
+        break;
+      case 'error':
+        icon = <XCircle className="w-5 h-5 mr-2 text-red-600" />;
+        break;
+      case 'blocked':
+        icon = <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />;
+        break;
+      default:
+        icon = null;
     }
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.status);
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data) {
-        const sorted = data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
-        setRecords(sorted);
-      }
-    })
-    .catch(err => {
-      if (err.message !== "Forbidden") {
-        showToast(`Records sync failed: ${err.message}`, "error");
-      }
-    });
 
-  fetch(`${baseUrl}/api/records/summary`, config)
-    .then(async res => {
-      if (res.ok) return res.json();
-    })
-    .then(data => {
-      if (data) setSummary(data);
-    })
-    .catch(() => {});
-}, [authHeaders, baseUrl, handleLogout]);
-  
- const fetchUserProfile = useCallback(() => {
-  const email = localStorage.getItem('userEmail');
-  if (!email) return;
+    setNotification({ message, type, icon });
 
-  fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-    headers: authHeaders
-  })
-    .then(async res => {
-      if (!res.ok) {
+    setTimeout(() => setNotification(null), 3000); // 3 seconds
+  };
+
+  const handleLogout = useCallback(() => {
+    showToast("Logged out successfully", "success");
+
+    setTimeout(() => {
+      localStorage.clear();
+      setUser({ name: "...", role: "..." });
+      setLoginEmail('');
+      setLoginPassword('');
+      setIsLoggedIn(false);
+      setActiveTab('Dashboard');
+      setSearchTerm('');
+    }, 600);
+  }, []);
+
+  const fetchData = useCallback(() => {
+    const config = { headers: authHeaders };
+
+    fetch(`${baseUrl}/api/records`, config)
+      .then(async res => {
         if (res.status === 403) {
-          showToast("Access Denied: Your account is inactive.", "error");
-          handleLogout();
-        } else {
-          const text = await res.text();
-          showToast(`Profile fetch failed: ${text || res.status}`, "error");
-        }
-        throw new Error("Profile fetch failed");
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
-        setLoading(false);
-        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
-      
-        setTimeout(() => {
-          handleLogout(); 
-        }, 300); 
-        return;
-      }
+          showToast("Session Expired: Your account is no longer active.", "error");
 
-      setUser({
-        name: data.businesspartnerfullname || data.name || email.split('@')[0],
-        role: data.role || "ROLE_ANALYST"
+          setTimeout(() => {
+            handleLogout();
+          }, 300);
+          return;
+        }
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || res.status);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data) {
+          const sorted = data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+          setRecords(sorted);
+        }
+      })
+      .catch(err => {
+        if (err.message !== "Forbidden") {
+          showToast(`Records sync failed: ${err.message}`, "error");
+        }
       });
+
+    fetch(`${baseUrl}/api/records/summary`, config)
+      .then(async res => {
+        if (res.ok) return res.json();
+      })
+      .then(data => {
+        if (data) setSummary(data);
+      })
+      .catch(() => { });
+  }, [authHeaders, baseUrl, handleLogout]);
+
+  const fetchUserProfile = useCallback(() => {
+    const email = localStorage.getItem('userEmail');
+    if (!email) return;
+
+    fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+      headers: authHeaders
     })
-    .catch(err => {
-      console.warn("Profile fetch skipped. Using session data.", err);
-    });
-}, [authHeaders, baseUrl]);
+      .then(async res => {
+        if (!res.ok) {
+          if (res.status === 403) {
+            showToast("Access Denied: Your account is inactive.", "error");
+            handleLogout();
+          } else {
+            const text = await res.text();
+            showToast(`Profile fetch failed: ${text || res.status}`, "error");
+          }
+          throw new Error("Profile fetch failed");
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+          setLoading(false);
+          showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+
+          setTimeout(() => {
+            handleLogout();
+          }, 300);
+          return;
+        }
+
+        setUser({
+          name: data.businesspartnerfullname || data.name || email.split('@')[0],
+          role: data.role || "ROLE_ANALYST"
+        });
+      })
+      .catch(err => {
+        console.warn("Profile fetch skipped. Using session data.", err);
+      });
+  }, [authHeaders, baseUrl]);
 
   useEffect(() => {
     const savedName = localStorage.getItem('userName');
@@ -415,62 +415,62 @@ const handleLogout = useCallback(() => {
                 const email = loginEmail;
                 const pass = loginPassword;
                 const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
-                
+
                 fetch(`${baseUrl}/api/records`, {
                   method: 'GET',
                   headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
                 })
-                .then(async res => {
-                  if (res.ok) {
-                    localStorage.setItem('userEmail', email);
-                    localStorage.setItem('userPassword', pass);
-                    
-                    const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, { 
-                      headers: { 'Authorization': basicAuth } 
-                    });
-                    
-                    if (profileRes.ok) {
-                      const data = await profileRes.json();
-                      
-                      if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
-                        setLoading(false);
-                        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
-                        return;
+                  .then(async res => {
+                    if (res.ok) {
+                      localStorage.setItem('userEmail', email);
+                      localStorage.setItem('userPassword', pass);
+
+                      const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+                        headers: { 'Authorization': basicAuth }
+                      });
+
+                      if (profileRes.ok) {
+                        const data = await profileRes.json();
+
+                        if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+                          setLoading(false);
+                          showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+                          return;
+                        }
+
+                        const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                        const finalRole = data.role || "ROLE_VIEWER";
+
+                        localStorage.setItem('userName', finalName);
+                        localStorage.setItem('userRole', finalRole);
+                        setUser({ name: finalName, role: finalRole });
+                        setIsLoggedIn(true);
+                        showToast("Login Successful!", "success");
+                      } else {
+                        setIsLoggedIn(true);
                       }
-                      
-                      const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
-                      const finalRole = data.role || "ROLE_VIEWER";
-                      
-                      localStorage.setItem('userName', finalName);
-                      localStorage.setItem('userRole', finalRole);
-                      setUser({ name: finalName, role: finalRole });
-                      setIsLoggedIn(true);
-                      showToast("Login Successful!", "success");
-                    } else {
-                      setIsLoggedIn(true);
-                    }
-                    setLoading(false);
-                  } else {
-                    setLoading(false);
-                    if (res.status === 401) {
-                      setTimeout(() => {
-                      showToast("Invalid Credentials: Please verify your email and password.", "error");
                       setLoading(false);
-                      }, 300); 
-                    } else if (res.status === 403) {
-                      setTimeout(() => {
-                      showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
-                      setLoading(false);
-                      }, 300);
                     } else {
-                      showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
+                      setLoading(false);
+                      if (res.status === 401) {
+                        setTimeout(() => {
+                          showToast("Invalid Credentials: Please verify your email and password.", "error");
+                          setLoading(false);
+                        }, 300);
+                      } else if (res.status === 403) {
+                        setTimeout(() => {
+                          showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
+                          setLoading(false);
+                        }, 300);
+                      } else {
+                        showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
+                      }
                     }
-                  }
-                })
-                .catch(() => {
-                  setLoading(false);
-                  showToast("Network Error: Please check your internet connection.", "error");
-                });
+                  })
+                  .catch(() => {
+                    setLoading(false);
+                    showToast("Network Error: Please check your internet connection.", "error");
+                  });
               }}
               className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
             >
@@ -735,99 +735,90 @@ const handleLogout = useCallback(() => {
 
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
-         <UserManagement
-          authHeaders={authHeaders}
-          onDeleteUser={async (id) => {
-            handleDeleteRequest(id, 'user');
-          }}
-          onToggleStatus={async (id) => {
-            const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
-              method: 'PATCH',
-              headers: { ...authHeaders, 'Content-Type': 'application/json' }
-            });
-            if (!response.ok) throw new Error("Status update failed");
-            fetchData();
-          }}
-        />
-        </div>
+              <UserManagement
+                authHeaders={authHeaders}
+                onDeleteUser={async (id) => {
+                  handleDeleteRequest(id, 'user');
+                }}
+                onToggleStatus={async (id) => {
+                  const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
+                    method: 'PATCH',
+                    headers: { ...authHeaders, 'Content-Type': 'application/json' }
+                  });
+                  if (!response.ok) throw new Error("Status update failed");
+                  fetchData();
+                }}
+              />
+            </div>
           )}
         </div>
       </main>
 
       {notification && (
         <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
+          {/* Icon */}
           <div className={`
-            w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-            ${notification.type === 'success'
+      w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
+      ${notification.type === 'success'
               ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
               : notification.type === 'error'
                 ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
                 : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'
             }
-          `}>
-            {notification.type === 'success' 
-              ? <CheckCircle size={24} /> 
+    `}>
+            {notification.type === 'success'
+              ? <CheckCircle size={24} />
               : notification.type === 'error'
                 ? <XCircle size={24} />
                 : <AlertCircle size={24} />
             }
           </div>
 
-           <div className={`
-           w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-            ${notification.type === 'success'
-              ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce'
-              : notification.type === 'error'
-                ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse'
-                : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'}
-          `}>
-            {notification.type === 'success' ? <CheckCircle size={24} /> 
-              : notification.type === 'error' ? <XCircle size={24} /> 
-              : <AlertCircle size={24} />}
-          </div>
-
-           <div className="flex-grow">
-            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${
-              notification.type === 'success' 
-                ? 'text-emerald-600' 
-                : notification.type === 'error' 
-                  ? 'text-rose-600' 
+          {/* Text content */}
+          <div className="flex-grow ml-4">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success'
+                ? 'text-emerald-600'
+                : notification.type === 'error'
+                  ? 'text-rose-600'
                   : 'text-orange-600'
-            }`}>
-              {notification.type === 'success' 
-                ? 'Success Verified' 
-                : notification.type === 'error' 
-                  ? 'System Error' 
+              }`}>
+              {notification.type === 'success'
+                ? 'Success Verified'
+                : notification.type === 'error'
+                  ? 'System Error'
                   : 'Access Blocked'
               }
             </h4>
             <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
               {notification.message}
             </p>
-           </div>
-
-            <button
-              onClick={() => setNotification(null)}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-
-            <div className={`
-              absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
-              ${notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}
-            `} style={{ animation: 'shrink 3s linear forwards' }}>
-              <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            </div>
           </div>
 
+          {/* Close button */}
+          <button
+            onClick={() => setNotification(null)}
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+
+          {/* Progress bar */}
+          <div className={`
+      absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
+      ${notification.type === 'success' ? 'bg-emerald-500/20' : notification.type === 'error' ? 'bg-rose-500/20' : 'bg-orange-500/20'}
+    `} style={{ animation: 'shrink 3s linear forwards' }}>
+            <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'}`} />
+          </div>
+
+          {/* Keyframes */}
           <style dangerouslySetInnerHTML={{
             __html: `
-            @keyframes shrink {
-              from { width: 100%; }
-              to { width: 0%; }
-            }
-          `}} />
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `
+          }} />
         </div>
       )}
 
