@@ -16,6 +16,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -48,17 +49,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authenticationProvider(authProvider())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/records/**").hasAnyRole("VIEWER", "ANALYST", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/records/**").hasAnyRole("ANALYST", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/records/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/records/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/records/**").hasAnyRole("VIEWER", "ANALYST", "ADMIN") 
+                    .requestMatchers(HttpMethod.POST, "/api/records/**").hasAnyRole("ANALYST", "ADMIN")
+                    .requestMatchers(HttpMethod.PUT, "/api/records/**").hasAnyRole("ANALYST", "ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/records/**").hasRole("ADMIN")
+                    .requestMatchers("/api/users/profile/**").hasAnyRole("VIEWER", "ANALYST", "ADMIN")
+                    .requestMatchers("/api/users/**").hasRole("ADMIN")
+                    .anyRequest().authenticated()
                 )
-                .httpBasic(Customizer.withDefaults())
-                .formLogin(Customizer.withDefaults());
+                .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
@@ -66,16 +67,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        String envOrigin = System.getenv("ALLOWED_ORIGINS");
-        if (envOrigin != null) {
-            configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", envOrigin));
-        } else {
-            configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        }
-
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-User-Role"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-User-Role", "Accept", "X-Requested-With"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
