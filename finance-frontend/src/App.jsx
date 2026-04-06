@@ -664,7 +664,7 @@ const App = () => {
               handleDeleteRequest(id, 'user');
             }}
             onToggleStatus={async (id, currentStatus) => {
-              const response = await fetch(`${baseUrl}/api/users/${id}/status`, {
+              const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
                 method: 'PATCH',
                 headers: { ...authHeaders, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ active: !currentStatus })
