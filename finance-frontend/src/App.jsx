@@ -247,7 +247,7 @@ const App = () => {
     if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
 
     try {
-      const res = await fetch(`${baseUrl}/api/users/${userId}/toggle-status`, {
+      const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
         method: 'PATCH',
         headers: authHeaders
       });
