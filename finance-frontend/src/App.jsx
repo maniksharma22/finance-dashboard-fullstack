@@ -265,12 +265,12 @@ const App = () => {
     if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
 
     try {
-      const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
+      const response = await fetch(`${baseUrl}/api/users/${userId}/toggle-status`, {
         method: 'PATCH',
         headers: authHeaders
       });
 
-      if (res.ok) {
+      if (response.ok) {
         showToast(`User is now ${currentStatus ? 'Inactive' : 'Active'}`, "success");
         fetchData();
       } else {
