@@ -3,7 +3,8 @@ import {
   TrendingUp, TrendingDown, Wallet, Search,
   Shield, PieChart, Activity, Bell, ChevronDown, CheckCircle,
   ArrowUpRight, ArrowDownLeft, CreditCard, Lock, UserPlus,
-  Trash2, Settings as SettingsIcon, Sparkles, SearchX, XCircle, AlertCircle, X
+  Trash2, Settings as SettingsIcon, Sparkles, SearchX, XCircle, AlertCircle, X, Loader2,
+  Eye, EyeOff
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
@@ -18,14 +19,33 @@ ChartJS.register(
   LinearScale, PointElement, LineElement, Title, Filler
 );
 
-const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
+const StatCard = ({ label, amount, icon, trend, color = "text-slate-900" }) => (
+  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group cursor-default">
+    <div className="flex justify-between items-start mb-4">
+      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">{icon}</div>
+      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-50 ${color}`}>{trend}</span>
+    </div>
+    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+    <h3 className={`text-3xl font-black tracking-tighter ${color}`}>₹{Number(amount).toLocaleString()}</h3>
+  </div>
+);
+
+const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8081").replace(/\/$/, '');
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [summary, setSummary] = useState({ totalIncome: 0, totalExpense: 0, netBalance: 0, categoryBreakdown: {} });
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [user, setUser] = useState({ name: "Manik Sharma", role: "ADMIN" });
+  
+  const [user, setUser] = useState({ 
+  name: localStorage.getItem('userName') || "...", 
+  role: localStorage.getItem('userRole') || "..." 
+  });
+  
   const [notification, setNotification] = useState(null);
   const [isRoleOpen, setIsRoleOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -37,61 +57,113 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 5;
 
-  const authHeaders = useMemo(() => ({
-    'Content-Type': 'application/json',
-    'Authorization': 'Basic ' + btoa('admin@finance.com:admin123')
-  }), []);
+  const authHeaders = useMemo(() => {
+    const email = localStorage.getItem('userEmail');
+    const pass = localStorage.getItem('userPassword');
+  
+    if (!email || !pass) {
+      return {
+        'Content-Type': 'application/json'
+      };
+    }
+  
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + btoa(`${email}:${pass}`)
+    };
+  }, [isLoggedIn]);
 
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchData = useCallback(() => {
-    // First Fetch: Records
-    fetch(`${baseUrl}/api/records`, { headers: authHeaders })
-      .then(res => {
-        if (!res.ok) throw new Error();
+   const fetchData = useCallback(() => {
+    const config = { headers: authHeaders };
+  
+    fetch(`${baseUrl}/api/records`, config)
+      .then(async res => {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || res.status);
+        }
         return res.json();
       })
       .then(data => {
-        if (Array.isArray(data)) {
-          const sortedData = data.sort((a, b) => {
-            const dateCompare = new Date(b.date) - new Date(a.date);
-            if (dateCompare !== 0) return dateCompare;
-            return b.id - a.id;
-          });
-          setRecords(sortedData);
-        } else {
-          setRecords([]);
-        }
+        const sorted = data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+        setRecords(sorted);
       })
-      .catch(() => {
-        setRecords([]);
-        showToast("System Connection Failed", "error");
-      });
-
-    // Second Fetch: Summary
-    fetch(`${baseUrl}/api/records/summary`, { headers: authHeaders })
-      .then(res => {
-        if (!res.ok) throw new Error();
+      .catch(err => showToast(`Records sync failed: ${err.message}`, "error"));
+  
+    fetch(`${baseUrl}/api/records/summary`, config)
+      .then(async res => {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || res.status);
+        }
         return res.json();
       })
-      .then(setSummary)
-      .catch(() => {
-      });
-  }, [authHeaders, baseUrl]); 
+      .then(data => {
+        setSummary(data);
+      })
+      .catch(err => showToast(`Summary sync failed: ${err.message}`, "error"));
+  }, [authHeaders, baseUrl]);
+  
+      const fetchUserProfile = useCallback(() => {
+      const email = localStorage.getItem('userEmail');
+      if (!email) return;
+    
+      fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+        headers: authHeaders
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Profile access restricted");
+          return res.json();
+        })
+        .then(data => {
+          setUser({
+            name: data.businesspartnerfullname || data.name || email.split('@')[0], 
+            role: data.role || "ROLE_ANALYST"
+          });
+        })
+        .catch(err => {
+          console.warn("Profile fetch skipped. Using session data.");
+        });
+    }, [authHeaders, baseUrl]);
+  
+   useEffect(() => {
+    const savedName = localStorage.getItem('userName');
+    const savedRole = localStorage.getItem('userRole');
+    
+    if (savedName && savedRole && user.name === "...") {
+      setUser({ name: savedName, role: savedRole });
+    }
+  
+    if (isLoggedIn) {
+      fetchData();
+      fetchUserProfile();
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData, user.role]);
+  const currentTab = navItems.find(item => item.name === activeTab);
+  if (currentTab && user.role && !currentTab.roles.includes(user.role)) {
+    setActiveTab('Dashboard');
+    setSearchTerm(''); 
+    setCurrentPage(1);
+  }
+ }, [user.role, activeTab]);
 
   const filteredRecords = useMemo(() => {
     return records.filter(record => {
       const term = searchTerm.toLowerCase();
-      const formattedDate = new Date(record.date).toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric'
-      }).toLowerCase();
+      const formattedDate = record.date
+      ? new Date(record.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }).toLowerCase()
+      : '';
 
       return (
         record.category?.toLowerCase().includes(term) ||
@@ -114,15 +186,20 @@ const App = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
-
-  const handleSubmit = (e) => {
-  e.preventDefault();
   
-  if (user.role === 'VIEWER') return showToast("Permission Denied", "error");
+
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  if (user.role === 'ROLE_VIEWER') return showToast("Permission Denied", "error");
 
   if (!formData.amount || !formData.category) {
     return showToast("Fields cannot be empty", "error");
   }
+
+  const isUpdate = !!formData.id;
+  const url = isUpdate ? `${baseUrl}/api/records/${formData.id}` : `${baseUrl}/api/records`;
+  const method = isUpdate ? 'PUT' : 'POST';
 
   const payload = { 
     ...formData, 
@@ -130,58 +207,101 @@ const App = () => {
     date: new Date(formData.date).toISOString() 
   };
 
-  fetch(`${baseUrl}/api/records`, { 
-    method: 'POST', 
+  fetch(url, { 
+    method: method, 
     headers: authHeaders, 
     body: JSON.stringify(payload) 
   })
-    .then(res => {
-      if (res.ok) {
-        fetchData(); 
-        setShowForm(false); 
-        showToast("Transaction Logged", "success");
+    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (ok) {
+        if (isUpdate) {
+          setTransactions(prev => prev.map(txn => txn.id === data.id ? data : txn));
+        } else {
+          setTransactions(prev => [data, ...prev]);
+        }
+        setShowForm(false);
+        showToast(isUpdate ? "Transaction Updated" : "Transaction Logged", "success");
         setFormData({ 
           amount: '', category: '', description: '', 
           type: 'EXPENSE', date: new Date().toISOString().split('T')[0] 
         });
       } else {
-        showToast("Failed to Save", "error");
+        showToast("Failed to Save: Server Error", "error");
       }
     })
     .catch(() => showToast("Network Error", "error"));
-};
+ };
+  const handleToggleUserStatus = async (userId, currentStatus) => {
+  if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
+
+  try {
+    const res = await fetch(`${baseUrl}/api/users/${userId}/toggle-status`, {
+      method: 'PATCH',
+      headers: authHeaders
+    });
+
+    if (res.ok) {
+      showToast(`User is now ${currentStatus ? 'Inactive' : 'Active'}`, "success");
+      fetchData(); 
+    } else {
+      const errorData = await res.json().catch(() => ({}));
+      showToast(errorData.message || "Failed to update status", "error");
+    }
+  } catch (err) {
+    showToast("Connection Error", "error");
+  }
+ };
 
   const handleDeleteRequest = (id, type = 'record') => {
-    if (user.role !== 'ADMIN') return showToast("Admin Access Required", "error");
+    if (user.role !== 'ROLE_ADMIN') return showToast("Admin Access Required", "error");
     setDeleteTarget({ id, type });
   };
 
   const confirmDeleteAction = async () => {
-    if (!deleteTarget) return;
-    const { id, type } = deleteTarget;
-    const url = type === 'user' ? `${baseUrl}/api/users/${id}` : `${baseUrl}/api/records/${id}`;
+  if (!deleteTarget) return;
+  const { id, type } = deleteTarget;
 
-    try {
-      const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
-      if (res.ok) {
-        await fetchData();
-        setDeleteTarget(null);
-        showToast(`${type === 'user' ? 'Identity' : 'Transaction'} Purged`, "error");
-        if (currentRecords.length === 1 && currentPage > 1) {
-          setCurrentPage(p => p - 1);
-        }
+  const url = type === 'user'
+    ? `${baseUrl}/api/users/${id}`
+    : `${baseUrl}/api/records/${id}`;
+
+  try {
+    const res = await fetch(url, { method: 'DELETE', headers: authHeaders });
+    if (res.ok) {
+      if (type === 'user') {
+        setUsers(prev => prev.filter(u => u.id !== id));
+      } else {
+        setTransactions(prev => prev.filter(txn => txn.id !== id));
       }
-    } catch (err) {
-      showToast("Operation Failed", "error");
-    }
-  };
 
-  const navItems = [
-    { name: 'Dashboard', icon: <Activity size={18} />, roles: ['ADMIN', 'ANALYST', 'VIEWER'] },
-    { name: 'Analytics', icon: <PieChart size={18} />, roles: ['ADMIN', 'ANALYST'] },
-    { name: 'Wallet', icon: <Wallet size={18} />, roles: ['ADMIN', 'ANALYST', 'VIEWER'] },
-    { name: 'Settings', icon: <SettingsIcon size={18} />, roles: ['ADMIN'] }
-  ];
+      setDeleteTarget(null);
+      showToast(`${type === 'user' ? 'User' : 'Transaction'} deleted successfully`, "success");
+
+      if ((filteredRecords.length - 1) % recordsPerPage === 0 && currentPage > 1) {
+        setCurrentPage(p => p - 1);
+      }
+    }
+  } catch (err) {
+    showToast("Operation Failed", "error");
+  }
+};
+  
+const handleLogout = () => {
+  localStorage.clear();
+  setUser({ name: "...", role: "..." });
+  setIsLoggedIn(false);
+  setActiveTab('Dashboard');
+  setSearchTerm('');
+  showToast("Logged out successfully", "success"); 
+};
+
+const navItems = [
+  { name: 'Dashboard', icon: <Activity size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
+  { name: 'Analytics', icon: <PieChart size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST'] },
+  { name: 'Wallet', icon: <Wallet size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
+  { name: 'Settings', icon: <SettingsIcon size={18} />, roles: ['ROLE_ADMIN'] }
+];
 
   const pieChartOptions = {
     maintainAspectRatio: false,
@@ -195,40 +315,172 @@ const App = () => {
     hover: { mode: 'nearest', intersect: true },
     animation: { animateRotate: true, animateScale: true }
   };
+   if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <div className="bg-white p-10 rounded-[40px] shadow-2xl w-full max-w-md text-center">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6 shadow-lg shadow-indigo-500/20">FinanceOS</div>
+          <h2 className="text-3xl font-black mb-2 tracking-tighter text-slate-900">Welcome Back</h2>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Enter your credentials to access FinanceOS</p>
+          
+          <div className="space-y-4 text-left">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
+              <input 
+                id="email" 
+                type="email" 
+                placeholder="name@finance.com" 
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
+              />
+            </div>
+  
+            <div className="relative">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
+              <input 
+                id="password" 
+                type={showPassword ? "text" : "password"} 
+                placeholder="••••••••••••" 
+                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-[38px] text-slate-400 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer p-2"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+      <button 
+        disabled={loading}   
+        onClick={() => {
+          setLoading(true);   
+      
+          const email = document.getElementById('email').value;
+          const pass = document.getElementById('password').value;
+          const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+          
+          fetch(`${baseUrl}/api/records`, {
+            method: 'GET',
+            headers: {
+              'Authorization': basicAuth,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(async res => {
+            if (res.ok) {
+              localStorage.setItem('userEmail', email);
+              localStorage.setItem('userPassword', pass);
+              
+              fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+                headers: { 'Authorization': basicAuth }
+              })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => {
+                if (data) {
+                  localStorage.setItem('userName', data.businesspartnerfullname || data.name || email.split('@')[0]);
+                  localStorage.setItem('userRole', data.role || "ROLE_VIEWER");
+                  setUser({
+                    name: data.businesspartnerfullname || data.name || email.split('@')[0],
+                    role: data.role || "ROLE_VIEWER"
+                  });
+                }
+                setIsLoggedIn(true);
+                showToast("Authentication Verified", "success");
+                setLoading(false);   
+              })
+              .catch(() => {
+                setIsLoggedIn(true);
+                showToast("Login Successful", "success");
+                setLoading(false);  
+              });
+            } else if (res.status === 403 || res.status === 401) {
+              showToast("Access Denied: Invalid Credentials or Inactive Account", "error");
+              setLoading(false);     
+            } else {
+              showToast("Server Error", "error");
+              setLoading(false);    
+            }
+          })
+          .catch(() => {
+            showToast("Server Connection Failed", "error");
+            setLoading(false);      
+          });
+        }}
+        className="w-full py-4 mt-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 group border-none outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="animate-spin" size={16} />
+            Logging in...
+          </>
+        ) : (
+          <>
+            Secure Login
+            <Lock size={16} className="group-hover:translate-x-0.5 transition-transform" />
+          </>
+        )}
+      </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-sans text-slate-900 antialiased overflow-hidden">
       {searchTerm.length === 0 && (
-        <aside className="w-72 bg-slate-900 m-4 rounded-[32px] flex flex-col p-8 text-white shadow-2xl hidden lg:flex animate-in fade-in slide-in-from-left-4 duration-500">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-xl italic cursor-default">F</div>
-            <span className="text-xl font-bold tracking-tight text-white cursor-default">FinanceOS</span>
-          </div>
-          <nav className="space-y-2 flex-grow">
-            {navItems.filter(item => item.roles.includes(user.role)).map((item) => (
-              <button
-                key={item.name}
-                onClick={() => { setActiveTab(item.name); setSearchTerm(''); }}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === item.name ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                {item.icon} {item.name}
-              </button>
-            ))}
-            {user.role === 'ADMIN' && (
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 px-4">Management</p>
+       <aside className="w-72 bg-slate-900 m-4 rounded-[32px] flex flex-col p-8 text-white shadow-2xl hidden lg:flex animate-in fade-in slide-in-from-left-4 duration-500">
+            <div className="flex items-center gap-3 mb-12">
+              <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-xl italic cursor-default">F</div>
+              <span className="text-xl font-bold tracking-tight text-white cursor-default">FinanceOS</span>
+            </div>
+          
+            <nav className="space-y-2 flex-grow">
+              {navItems.filter(item => item.roles.includes(user.role)).map((item) => (
                 <button
-                  onClick={() => { setActiveTab('Provision'); setSearchTerm(''); }}
-                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === 'Provision' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  key={item.name}
+                  onClick={() => { setActiveTab(item.name); setSearchTerm(''); }}
+                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === item.name ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                 >
-                  <UserPlus size={18} /> Provision User
+                  {item.icon} {item.name}
                 </button>
+              ))}
+          
+              {user.role === 'ROLE_ADMIN' && (
+                <div className="mt-8 pt-8 border-t border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 px-4">Management</p>
+                  <button
+                    onClick={() => { setActiveTab('Provision'); setSearchTerm(''); }}
+                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer outline-none border-none ${activeTab === 'Provision' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    <UserPlus size={18} /> Provision User
+                  </button>
+                </div>
+              )} 
+            </nav>
+          
+           <div className="mt-auto pt-6 border-t border-white/10">
+            <div className="flex items-center justify-between gap-3 group/profile">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold shadow-lg shadow-indigo-500/20 shrink-0 uppercase">
+                  {user.name ? user.name[0] : 'U'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-[11px] font-black leading-none truncate w-24">
+                    {user.name}
+                  </p>
+                  <p className="text-[9px] text-slate-500 mt-1 uppercase font-black tracking-tighter italic">
+                    {user.role.replace('ROLE_', '')}
+                  </p>
+                </div>
               </div>
-            )} 
-          </nav>
-          <div className="mt-auto pt-6 border-t border-white/10 cursor-default">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold">MS</div>
-              <div><p className="text-xs font-bold leading-none">{user.name}</p><p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">{user.role}</p></div>
+              <button 
+                onClick={handleLogout} 
+                className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all border-none cursor-pointer text-[9px] font-black uppercase tracking-widest shrink-0"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </aside>
@@ -238,15 +490,18 @@ const App = () => {
         <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 relative z-50">
           <div className={`transition-all duration-500 ${searchTerm.length > 0 ? 'opacity-40 blur-[2px]' : 'opacity-100'}`}>
             <h2 className="text-3xl font-black tracking-tight text-slate-900 cursor-default">{activeTab}</h2>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest cursor-default">Session: {user.role}</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest cursor-default italic">
+              Session: {user.role?.replace('ROLE_', '')}
+            </p>
           </div>
+          
           <div className="flex gap-4 items-center">
             {activeTab === 'Dashboard' && (
               <div className={`relative flex items-center transition-all duration-500 ${searchTerm.length > 0 ? 'scale-110 -translate-x-12' : ''}`}>
                 <Search className={`absolute left-5 transition-colors ${searchTerm.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`} size={18} />
                 <input
                   type="text"
-                  placeholder="Search by amounts, categories or dates..."
+                  placeholder="Search transactions..."
                   className={`pl-13 pr-6 py-4 bg-white rounded-2xl border-none shadow-2xl focus:ring-4 ring-indigo-500/10 text-sm outline-none transition-all ${searchTerm.length > 0 ? 'w-[600px] ring-2 ring-indigo-500' : 'w-80'}`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -256,20 +511,43 @@ const App = () => {
                 )}
               </div>
             )}
+        
             {searchTerm.length === 0 && (
               <div className="relative animate-in fade-in duration-300">
-                <button onClick={() => setIsRoleOpen(!isRoleOpen)} className="flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-500 transition-all cursor-pointer group outline-none">
-                  <div className="p-1.5 bg-indigo-50 rounded-lg group-hover:bg-indigo-600 transition-colors"><Shield size={14} className="text-indigo-600 group-hover:text-white" /></div>
-                  <div className="text-left"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Active Identity</p><p className="text-xs font-bold text-slate-800 leading-none">{user.role}</p></div>
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
+                <button 
+                  onClick={() => user.role === 'ROLE_ADMIN' && setIsRoleOpen(!isRoleOpen)} 
+                  className={`flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-2xl shadow-sm border border-slate-100 transition-all outline-none ${user.role === 'ROLE_ADMIN' ? 'hover:border-indigo-500 cursor-pointer' : 'cursor-default'}`}
+                >
+                  <div className="p-1.5 bg-indigo-50 rounded-lg">
+                    <Shield size={14} className="text-indigo-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Active Identity</p>
+                    <p className="text-xs font-bold text-slate-800 leading-none uppercase">{user.role?.replace('ROLE_', '')}</p>
+                  </div>
+                  {user.role === 'ROLE_ADMIN' && (
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
+                  )}
                 </button>
-                {isRoleOpen && (
+        
+                {isRoleOpen && user.role === 'ROLE_ADMIN' && (
                   <>
                     <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsRoleOpen(false)}></div>
                     <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-slate-50 p-2 z-20 animate-in fade-in zoom-in-95">
-                      {['ADMIN', 'ANALYST', 'VIEWER'].map((role) => (
-                        <button key={role} onClick={() => { setUser({ ...user, role }); setIsRoleOpen(false); setActiveTab('Dashboard'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border-none ${user.role === role ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                          {role} {user.role === role && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                      {['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'].map((role) => (
+                        <button 
+                          key={role} 
+                          onClick={() => { 
+                            setUser({ ...user, role }); 
+                            setIsRoleOpen(false); 
+                            setActiveTab('Dashboard'); 
+                            setSearchTerm('');     
+                            setCurrentPage(1);     
+                          }} 
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none border-none ${user.role === role ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                        >
+                          {role.replace('ROLE_', '')} 
+                          {user.role === role && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
                         </button>
                       ))}
                     </div>
@@ -353,19 +631,33 @@ const App = () => {
             <div className="col-span-12 bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm animate-in fade-in duration-500">
               <h3 className="text-xl font-bold mb-6">Cashflow Analytics</h3>
               <div className="h-96">
-                <Line data={{
-                  labels: [...new Set(records.map(r => r.date?.split('T')[0]))].sort().slice(-7),
-                  datasets: [{
-                    fill: true,
-                    label: 'Amount (₹)',
-                    data: records.map(r => r.type === 'EXPENSE' ? -r.amount : r.amount).slice(-7),
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointBackgroundColor: '#6366f1',
-                  }],
-                }} options={{ responsive: true, maintainAspectRatio: false }} />
+                {(() => {
+                  const last7 = [...records]
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))
+                  .slice(-7);
+          
+                  return (
+                    <Line
+                      data={{
+                        labels: last7.map(r => r.date?.split('T')[0]),
+                        datasets: [{
+                          fill: true,
+                          label: 'Amount (₹)',
+                          data: last7.map(r => {
+                            const numAmount = parseFloat(r.amount) || 0;
+                            return r.type === 'EXPENSE' ? -numAmount : numAmount;
+                          }),
+                          borderColor: '#6366f1',
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          tension: 0.4,
+                          pointRadius: 6,
+                          pointBackgroundColor: '#6366f1',
+                        }],
+                      }}
+                      options={{ responsive: true, maintainAspectRatio: false }}
+                    />
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -373,127 +665,136 @@ const App = () => {
           {activeTab === 'Wallet' && (
             <div className="col-span-12 md:col-span-5 bg-slate-900 p-10 rounded-[40px] relative overflow-hidden shadow-2xl text-white animate-in zoom-in-95 duration-500">
               <CreditCard className="absolute -right-10 -bottom-10 text-white/5" size={300} />
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-10">Primary Account</p>
-              <h2 className="text-5xl font-black mb-10 tracking-tighter">₹{Number(summary.netBalance).toLocaleString()}</h2>
-              <div><p className="text-[10px] text-slate-400 uppercase font-black">Account Holder</p><p className="font-bold">{user.name}</p></div>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-10 italic">
+                {user.role.replace('ROLE_', '')} ACCOUNT
+              </p>
+              <h2 className="text-5xl font-black mb-10 tracking-tighter italic">
+                ₹{Number(summary.netBalance).toLocaleString()}
+              </h2>
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Clearance Name</p>
+                <p className="font-bold text-xl tracking-tight uppercase">{user.name}</p>
+              </div>
             </div>
           )}
 
-          {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ADMIN' && (
+          {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
-              <UserManagement
-                authHeaders={authHeaders}
-                onDeleteUser={(id) => {
-                  handleDeleteRequest(id, 'user');
-                  return new Promise((resolve) => {
-                    const interval = setInterval(() => {
-                      if (!deleteTarget) {
-                        clearInterval(interval);
-                        resolve();
-                      }
-                    }, 50);
-                  });
-                }}
-              />
+             <UserManagement
+              authHeaders={authHeaders}
+              onToggleStatus={handleToggleUserStatus} 
+              onDeleteUser={(id) => {
+                handleDeleteRequest(id, 'user');
+                return new Promise((resolve) => {
+                  const interval = setInterval(() => {
+                    if (!deleteTarget) {
+                      clearInterval(interval);
+                      resolve();
+                    }
+                  }, 50);
+                });
+              }}
+            />
             </div>
           )}
         </div>
       </main>
 
-    {notification && (
-  <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
-    <div className={`
-      relative overflow-hidden min-w-[320px] px-6 py-5 rounded-[28px] 
-      shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl border
-      flex items-center gap-5 bg-white/90
-      ${notification.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}
-    `}>
-      
-      <div className={`
-        w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
-        ${notification.type === 'success' 
-          ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' 
-          : 'bg-rose-500 text-white shadow-rose-200 animate-pulse'}
-      `}>
-        {notification.type === 'success' ? <CheckCircle size={24} /> : <XCircle size={24} />}
-      </div>
+ {notification && (
+        <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-full fade-in duration-500 ease-out">
+          <div className={`
+            relative overflow-hidden min-w-[320px] px-6 py-5 rounded-[28px] 
+            shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl border
+            flex items-center gap-5 bg-white/90
+            ${notification.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}
+          `}>
+            
+            <div className={`
+              w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg
+              ${notification.type === 'success' 
+                ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' 
+                : 'bg-rose-500 text-white shadow-rose-200 animate-pulse'}
+            `}>
+              {notification.type === 'success' ? <CheckCircle size={24} /> : <XCircle size={24} />}
+            </div>
 
-      <div className="flex-grow">
-        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
-          {notification.type === 'success' ? 'Success Verified' : 'System Error'}
-        </h4>
-        <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
-          {notification.message}
-        </p>
-      </div>
+            <div className="flex-grow">
+              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {notification.type === 'success' ? 'Success Verified' : 'System Error'}
+              </h4>
+              <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
+                {notification.message}
+              </p>
+            </div>
 
-      <button 
-        onClick={() => setNotification(null)}
-        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
-      >
-        <X size={18} />
-      </button>
+            <button 
+              onClick={() => setNotification(null)}
+              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer"
+            >
+              <X size={18} />
+            </button>
 
-      <div className={`
-        absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
-        ${notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}
-      `} style={{ animation: 'shrink 3s linear forwards' }}>
-        <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-      </div>
-    </div>
+            <div className={`
+              absolute bottom-0 left-0 h-1.5 transition-all duration-[3000ms] ease-linear w-full
+              ${notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}
+            `} style={{ animation: 'shrink 3s linear forwards' }}>
+              <div className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            </div>
+          </div>
 
-    <style dangerouslySetInnerHTML={{ __html: `
-      @keyframes shrink {
-        from { width: 100%; }
-        to { width: 0%; }
-      }
-    `}} />
-  </div>
-)}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes shrink {
+              from { width: 100%; }
+              to { width: 0%; }
+            }
+          `}} />
+        </div>
+      )}
 
       {deleteTarget && (
-  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-    <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center animate-in zoom-in-95 duration-200">
-      <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-100/50">
-        <XCircle size={48} className="animate-in zoom-in duration-300" />
-      </div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-100/50">
+              <XCircle size={48} className="animate-in zoom-in duration-300" />
+            </div>
       
-      <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
-      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">
-        "Action cannot be undone."
-      </p>
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Final Purge?</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 leading-relaxed italic">
+              "Action cannot be undone."
+            </p>
       
-      <div className="flex gap-4">
-        <button 
-          onClick={() => setDeleteTarget(null)} 
-          className="flex-1 py-5 bg-slate-50 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all cursor-pointer outline-none border border-slate-100"
-        >
-          Cancel
-        </button>
-        
-        <button 
-          onClick={confirmDeleteAction} 
-          className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer outline-none border-none"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setDeleteTarget(null)} 
+                className="flex-1 py-5 bg-slate-50 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all cursor-pointer outline-none border border-slate-100"
+              >
+                Cancel
+              </button>
+      
+              <button 
+                onClick={async () => {
+                  setLoading(true);
+                  await confirmDeleteAction();
+                  setLoading(false);
+                }} 
+                disabled={loading}
+                className="flex-1 py-5 bg-rose-500 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed outline-none border-none flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-const StatCard = ({ label, amount, icon, trend, color = "text-slate-900" }) => (
-  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group cursor-default">
-    <div className="flex justify-between items-start mb-4">
-      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">{icon}</div>
-      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-50 ${color}`}>{trend}</span>
-    </div>
-    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-    <h3 className={`text-3xl font-black tracking-tighter ${color}`}>₹{Number(amount).toLocaleString()}</h3>
-  </div>
-);
 
 export default App;
