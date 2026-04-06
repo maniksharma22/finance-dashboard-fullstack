@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Shield, Trash2, UserPlus, X, Lock, Mail, ChevronDown, Search, SearchX, Edit3, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
-const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
+const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus, showToast }) => {
   const [users, setUsers] = useState([]);
   const currentUserEmail = useMemo(() => {
     if (!authHeaders?.Authorization) return null;
@@ -48,11 +48,12 @@ const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
 
   const handleDelete = async (id) => {
     try {
-      setActionLoading(prev => ({ ...prev, [`${id}-delete`]: true })); // Yahan 'delete' add kiya
+      setActionLoading(prev => ({ ...prev, [`${id}-delete`]: true }));
       await onDeleteUser(id);
       await fetchUsers();
+      if (showToast) showToast("User Identity Purged", "success");
     } catch (e) {
-      console.error(e);
+      if (showToast) showToast("Delete Failed", "error");
     } finally {
       setActionLoading(prev => ({ ...prev, [`${id}-delete`]: false }));
     }
@@ -99,13 +100,18 @@ const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
     setSuccess(null);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!newUser.email.trim()) return setError("Identity (Email) is required.");
     if (!emailRegex.test(newUser.email)) return setError("Invalid Format: Please enter a valid email.");
-    if (!isEditing && (!newUser.password || newUser.password.length < 4)) {
-      return setError("Security Key must be at least 4 characters.");
-    }
-    if (isEditing && newUser.password && newUser.password.length < 4) {
-      return setError("New Security Key must be at least 4 characters.");
+
+    if (!isEditing) {
+      if (!newUser.password || newUser.password.length < 6) {
+        return setError("Security Key must be at least 6 characters.");
+      }
+    } else {
+      if (newUser.password && newUser.password.length > 0 && newUser.password.length < 6) {
+        return setError("New Security Key must be at least 6 characters.");
+      }
     }
 
     setLoading(true);
@@ -125,30 +131,43 @@ const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
     })
       .then(async (res) => {
         if (res.ok) {
-          setSuccess(isEditing ? "Identity Updated" : "Identity Deployed");
+          const msg = isEditing ? "Identity Updated" : "Identity Deployed";
+          setSuccess(msg);
+          if (showToast) showToast(msg, "success");
           fetchUsers();
           setTimeout(() => handleCloseModal(), 1500);
         } else {
           const errorData = await res.json().catch(() => ({}));
-          setError(errorData.message || "Action failed (Identity might already exist).");
+          const errorMsg = errorData.message || "Action failed (Identity might already exist).";
+          setError(errorMsg);
+          if (showToast) showToast(errorMsg, "error");
         }
       })
-      .catch(() => setError("System unreachable: Check your connection."))
+      .catch(() => {
+        setError("System unreachable: Check your connection.");
+        if (showToast) showToast("Connection Error", "error");
+      })
       .finally(() => setLoading(false));
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
     try {
-      setActionLoading(prev => ({ ...prev, [`${id}-status`]: true })); // Yahan 'status' add kiya
-      const response = await fetch(`${baseUrl}/api/users/${id}/status`, {
+      setActionLoading(prev => ({ ...prev, [`${id}-status`]: true }));
+      const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
         method: 'PATCH',
-        headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !currentStatus })
+        headers: { ...authHeaders, 'Content-Type': 'application/json' }
       });
-      if (!response.ok) throw new Error();
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to update status");
+      }
+
       await fetchUsers();
+      if (showToast) showToast(`User is now ${!currentStatus ? 'Active' : 'Inactive'}`, "success");
     } catch (e) {
       console.error("Status Update Failed", e);
+      if (showToast) showToast(e.message, "error");
     } finally {
       setActionLoading(prev => ({ ...prev, [`${id}-status`]: false }));
     }
@@ -243,7 +262,7 @@ const UserManagement = ({ authHeaders, onDeleteUser, onToggleStatus }) => {
                       className="flex items-center gap-2 mx-auto bg-transparent border-none cursor-pointer disabled:opacity-50"
                     >
                       {actionLoading[`${u.id}-status`] ? (
-                        <Loader2 className={`animate-spin ${u.active ? 'text-rose-500' : 'text-emerald-500'}`} size={12} />
+                        <Loader2 className="animate-spin text-indigo-500" size={14} />
                       ) : (
                         <>
                           <div className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
