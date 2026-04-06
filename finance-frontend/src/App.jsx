@@ -44,13 +44,17 @@ const App = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
   const [summary, setSummary] = useState({ totalIncome: 0, totalExpense: 0, netBalance: 0, categoryBreakdown: {} });
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [user, setUser] = useState({ 
-  name: localStorage.getItem('userName') || "...", 
-  role: localStorage.getItem('userRole') || "..." 
+    name: localStorage.getItem('userName') || "...", 
+    role: localStorage.getItem('userRole') || "..." 
   });
   
   const [notification, setNotification] = useState(null);
@@ -299,6 +303,8 @@ const confirmDeleteAction = async () => {
 const handleLogout = () => {
   localStorage.clear();
   setUser({ name: "...", role: "..." });
+  setLoginEmail('');    
+  setLoginPassword(''); 
   setIsLoggedIn(false);
   setActiveTab('Dashboard');
   setSearchTerm('');
@@ -328,19 +334,21 @@ const handleLogout = () => {
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Corporate Email</label>
               <input 
-                id="email" 
-                type="email" 
-                placeholder="name@finance.com" 
-                className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
+              type="email" 
+              placeholder="name@finance.com" 
+              className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
               />
             </div>
             <div className="relative">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Security Password</label>
-              <input 
-                id="password" 
+             <input 
                 type={showPassword ? "text" : "password"} 
                 placeholder="••••••••••••" 
                 className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all text-sm font-semibold"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
               />
               <button 
                 type="button"
@@ -351,73 +359,74 @@ const handleLogout = () => {
               </button>
             </div>
           </div>
-          <button 
-            disabled={loading}   
-            onClick={() => {
-              setLoading(true);   
-              const email = document.getElementById('email').value;
-              const pass = document.getElementById('password').value;
-              const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
-              fetch(`${baseUrl}/api/records`, {
-                method: 'GET',
-                headers: {
-                  'Authorization': basicAuth,
-                  'Content-Type': 'application/json'
-                }
-              })
-              .then(async res => {
-                if (res.ok) {
-                  localStorage.setItem('userEmail', email);
-                  localStorage.setItem('userPassword', pass);
-                  fetch(`${baseUrl}/api/users/profile?email=${email}`, {
-                    headers: { 'Authorization': basicAuth }
-                  })
-                  .then(r => r.ok ? r.json() : null)
-                  .then(data => {
-                    if (data) {
-                      localStorage.setItem('userName', data.businesspartnerfullname || data.name || email.split('@')[0]);
-                      localStorage.setItem('userRole', data.role || "ROLE_VIEWER");
-                      setUser({
-                        name: data.businesspartnerfullname || data.name || email.split('@')[0],
-                        role: data.role || "ROLE_VIEWER"
-                      });
-                    }
-                    setIsLoggedIn(true);
-                    showToast("Authentication Verified", "success");
-                    setLoading(false);   
-                  })
-                  .catch(() => {
-                    setIsLoggedIn(true);
-                    showToast("Login Successful", "success");
-                    setLoading(false);  
-                  });
-                } else if (res.status === 403 || res.status === 401) {
-                  showToast("Access Denied: Invalid Credentials", "error");
-                  setLoading(false);     
-                } else {
-                  showToast("Server Error", "error");
-                  setLoading(false);    
-                }
-              })
-              .catch(() => {
-                showToast("Server Connection Failed", "error");
-                setLoading(false);       
-              });
-            }}
-            className="w-full py-4 mt-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 group border-none outline-none disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={16} />
-                Logging in...
-              </>
-            ) : (
-              <>
-                Secure Login
-                <Lock size={16} className="group-hover:translate-x-0.5 transition-transform" />
-              </>
-            )}
-          </button>
+         <button 
+          disabled={loading}   
+          onClick={() => {
+            setLoading(true);   
+            const email = loginEmail;
+            const pass = loginPassword;
+            const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+        
+            fetch(`${baseUrl}/api/records`, {
+              method: 'GET',
+              headers: {
+                'Authorization': basicAuth,
+                'Content-Type': 'application/json'
+              }
+            })
+            .then(async res => {
+              if (res.ok) {
+                localStorage.setItem('userEmail', email);
+                localStorage.setItem('userPassword', pass);
+                
+                fetch(`${baseUrl}/api/users/profile?email=${email}`, {
+                  headers: { 'Authorization': basicAuth }
+                })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                  if (data) {
+                    const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                    const finalRole = data.role || "ROLE_VIEWER";
+                    localStorage.setItem('userName', finalName);
+                    localStorage.setItem('userRole', finalRole);
+                    setUser({ name: finalName, role: finalRole });
+                  }
+                  setIsLoggedIn(true);
+                  showToast("Authentication Verified", "success");
+                  setLoading(false);   
+                })
+                .catch(() => {
+                  setIsLoggedIn(true);
+                  showToast("Login Successful", "success");
+                  setLoading(false);  
+                });
+              } else if (res.status === 403 || res.status === 401) {
+                showToast("Access Denied: Invalid Credentials", "error");
+                setLoading(false);     
+              } else {
+                showToast("Server Error", "error");
+                setLoading(false);    
+              }
+            })
+            .catch(() => {
+              showToast("Server Connection Failed", "error");
+              setLoading(false);       
+            });
+          }}
+          className="w-full py-4 mt-8 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 group border-none outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin" size={16} />
+              Logging in...
+            </>
+          ) : (
+            <>
+              Secure Login
+              <Lock size={16} className="group-hover:translate-x-0.5 transition-transform" />
+            </>
+          )}
+        </button>
         </div>
       </div>
     );
