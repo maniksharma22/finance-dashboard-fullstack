@@ -10,6 +10,8 @@ import java.util.List;
 @Repository
 public interface FinancialRecordRepository extends JpaRepository<FinancialRecord, Long> {
     List<FinancialRecord> findByCreatedBy(User user);
+    List<FinancialRecord> findByCreatedByOrderByDateDesc(User user);
+    List<FinancialRecord> findAllByOrderByDateDesc();
     List<FinancialRecord> findByCreatedByAndTypeIgnoreCase(User user, String type);
     List<FinancialRecord> findByCreatedByAndCategoryIgnoreCase(User user, String category);
     List<FinancialRecord> findByCreatedByAndDateBetween(User user, LocalDateTime start, LocalDateTime end);
