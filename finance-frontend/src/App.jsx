@@ -362,36 +362,36 @@ const App = () => {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
 
-         {notification && (
-        <div className="fixed top-10 right-10 z-[1000] flex items-center p-5 bg-white rounded-[32px] shadow-2xl border border-slate-100 min-w-[320px] animate-in slide-in-from-right-full fade-in duration-500 ease-out overflow-hidden">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${notification.type === 'success' ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' : notification.type === 'error' ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse' : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'}`}>
-            {notification.type === 'success' ? <CheckCircle size={24} /> : notification.type === 'error' ? <XCircle size={24} /> : <AlertCircle size={24} />}
+        {notification && (
+          <div className="fixed top-10 right-10 z-[1000] flex items-center p-5 bg-white rounded-[32px] shadow-2xl border border-slate-100 min-w-[320px] animate-in slide-in-from-right-full fade-in duration-500 ease-out overflow-hidden">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${notification.type === 'success' ? 'bg-emerald-500 text-white shadow-emerald-200 animate-bounce' : notification.type === 'error' ? 'bg-rose-500 text-white shadow-rose-200 animate-pulse' : 'bg-orange-500 text-white shadow-orange-200 animate-pulse'}`}>
+              {notification.type === 'success' ? <CheckCircle size={24} /> : notification.type === 'error' ? <XCircle size={24} /> : <AlertCircle size={24} />}
+            </div>
+            <div className="flex-grow ml-4 text-left">
+              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : notification.type === 'error' ? 'text-rose-600' : 'text-orange-600'}`}>
+                {notification.type === 'success' ? 'Success Verified' : notification.type === 'error' ? 'System Error' : 'Access Blocked'}
+              </h4>
+              <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
+                {notification.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              aria-label="Dismiss notification"
+              className="ml-4 p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer bg-transparent outline-none"
+            >
+              <X size={18} />
+            </button>
+            <div className="absolute bottom-0 left-0 h-1.5 w-full bg-slate-100">
+              <div
+                className={`h-full transition-all ease-linear ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'}`}
+                style={{ animation: 'shrink 3s linear forwards' }}
+              />
+            </div>
+            <style dangerouslySetInnerHTML={{ __html: `@keyframes shrink { from { width: 100%; } to { width: 0%; } }` }} />
           </div>
-          <div className="flex-grow ml-4 text-left">
-            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${notification.type === 'success' ? 'text-emerald-600' : notification.type === 'error' ? 'text-rose-600' : 'text-orange-600'}`}>
-              {notification.type === 'success' ? 'Success Verified' : notification.type === 'error' ? 'System Error' : 'Access Blocked'}
-            </h4>
-            <p className="text-sm font-bold text-slate-800 tracking-tight leading-tight">
-              {notification.message}
-            </p>
-          </div>
-          <button
-            onClick={() => setNotification(null)}
-            aria-label="Dismiss notification"
-            className="ml-4 p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 border-none cursor-pointer bg-transparent outline-none"
-          >
-            <X size={18} />
-          </button>
-          <div className="absolute bottom-0 left-0 h-1.5 w-full bg-slate-100">
-            <div
-              className={`h-full transition-all ease-linear ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-orange-500'}`}
-              style={{ animation: 'shrink 3s linear forwards' }}
-            />
-          </div>
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes shrink { from { width: 100%; } to { width: 0%; } }` }} />
-        </div>
-      )}
-      
+        )}
+
         <div className="bg-white p-10 pt-16 rounded-[40px] shadow-2xl w-full max-w-md text-center relative overflow-visible">
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white font-black text-3xl italic shadow-2xl shadow-indigo-500/40 border-[6px] border-slate-900">
             F
@@ -488,15 +488,22 @@ const App = () => {
                           localStorage.setItem('userName', finalName);
                           localStorage.setItem('userRole', finalRole);
                           setUser({ name: finalName, role: finalRole });
-                          setIsLoggedIn(true);
+
                           showToast(`Welcome back, ${finalName}!`, "success");
+                          setTimeout(() => {
+                            setIsLoggedIn(true);
+                          }, 800);
                         } else {
-                          setIsLoggedIn(true);
                           showToast("Login Successful", "success");
+                          setTimeout(() => {
+                            setIsLoggedIn(true);
+                          }, 800);
                         }
                       } catch (error) {
-                        setIsLoggedIn(true);
                         showToast("Connected with limited profile access.", "warning");
+                        setTimeout(() => {
+                          setIsLoggedIn(true);
+                        }, 800);
                       }
                     } else {
                       showToast("Service Unavailable: Unable to reach the gateway.", "error");
