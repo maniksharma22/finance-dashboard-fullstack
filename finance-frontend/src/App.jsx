@@ -4,7 +4,7 @@ import {
   Shield, PieChart, Activity, Bell, ChevronDown, CheckCircle,
   ArrowUpRight, ArrowDownLeft, CreditCard, Lock, UserPlus,
   Trash2, Settings as SettingsIcon, Sparkles, SearchX, XCircle, AlertCircle, X, Loader2,
-  Eye, EyeOff
+  Eye, EyeOff, LogOut
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
@@ -844,3 +844,4 @@ const App = () => {
 };
 
 export default App;
+
