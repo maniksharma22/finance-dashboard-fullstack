@@ -89,37 +89,43 @@ const App = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchData = useCallback(() => {
-    const config = { headers: authHeaders };
+ const fetchData = useCallback(() => {
+  const config = { headers: authHeaders };
 
-    fetch(`${baseUrl}/api/records`, config)
-      .then(async res => {
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.status);
-        }
-        return res.json();
-      })
-      .then(data => {
+  fetch(`${baseUrl}/api/records`, config)
+    .then(async res => {
+      if (res.status === 403) {
+        showToast("Session Expired: Your account is no longer active.", "error");
+        handleLogout();
+        return;
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.status);
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (data) {
         const sorted = data.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
         setRecords(sorted);
-      })
-      .catch(err => showToast(`Records sync failed: ${err.message}`, "error"));
+      }
+    })
+    .catch(err => {
+      if (err.message !== "Forbidden") {
+        showToast(`Records sync failed: ${err.message}`, "error");
+      }
+    });
 
-    fetch(`${baseUrl}/api/records/summary`, config)
-      .then(async res => {
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.status);
-        }
-        return res.json();
-      })
-      .then(data => {
-        setSummary(data);
-      })
-      .catch(err => showToast(`Summary sync failed: ${err.message}`, "error"));
-  }, [authHeaders, baseUrl]);
-
+  fetch(`${baseUrl}/api/records/summary`, config)
+    .then(async res => {
+      if (res.ok) return res.json();
+    })
+    .then(data => {
+      if (data) setSummary(data);
+    })
+    .catch(() => {});
+}, [authHeaders, baseUrl, handleLogout]);
   const fetchUserProfile = useCallback(() => {
     const email = localStorage.getItem('userEmail');
     if (!email) return;
@@ -367,33 +373,55 @@ const App = () => {
                 const email = loginEmail;
                 const pass = loginPassword;
                 const basicAuth = 'Basic ' + btoa(`${email}:${pass}`);
+                
                 fetch(`${baseUrl}/api/records`, {
                   method: 'GET',
                   headers: { 'Authorization': basicAuth, 'Content-Type': 'application/json' }
                 })
-                  .then(async res => {
-                    if (res.ok) {
-                      localStorage.setItem('userEmail', email);
-                      localStorage.setItem('userPassword', pass);
-                      fetch(`${baseUrl}/api/users/profile?email=${email}`, { headers: { 'Authorization': basicAuth } })
-                        .then(r => r.ok ? r.json() : null)
-                        .then(data => {
-                          if (data) {
-                            const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
-                            const finalRole = data.role || "ROLE_VIEWER";
-                            localStorage.setItem('userName', finalName);
-                            localStorage.setItem('userRole', finalRole);
-                            setUser({ name: finalName, role: finalRole });
-                          }
-                          setIsLoggedIn(true);
-                          setLoading(false);
-                        })
-                        .catch(() => { setIsLoggedIn(true); setLoading(false); });
+                .then(async res => {
+                  if (res.ok) {
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userPassword', pass);
+                    
+                    const profileRes = await fetch(`${baseUrl}/api/users/profile?email=${email}`, { 
+                      headers: { 'Authorization': basicAuth } 
+                    });
+                    
+                    if (profileRes.ok) {
+                      const data = await profileRes.json();
+                      
+                      if (data.businesspartnerisblocked || data.ismarkedforarchiving) {
+                        setLoading(false);
+                        showToast("Access Denied: Your account has been deactivated by the Administrator.", "error");
+                        return;
+                      }
+                      
+                      const finalName = data.businesspartnerfullname || data.name || email.split('@')[0];
+                      const finalRole = data.role || "ROLE_VIEWER";
+                      
+                      localStorage.setItem('userName', finalName);
+                      localStorage.setItem('userRole', finalRole);
+                      setUser({ name: finalName, role: finalRole });
+                      setIsLoggedIn(true);
                     } else {
-                      setLoading(false);
+                      setIsLoggedIn(true);
                     }
-                  })
-                  .catch(() => setLoading(false));
+                    setLoading(false);
+                  } else {
+                    setLoading(false);
+                    if (res.status === 401) {
+                      showToast("Invalid Credentials: Please verify your email and password.", "error");
+                    } else if (res.status === 403) {
+                      showToast("Access Denied: Your account is currently inactive. Please contact support.", "error");
+                    } else {
+                      showToast("Service Unavailable: Unable to reach the finance gateway.", "error");
+                    }
+                  }
+                })
+                .catch(() => {
+                  setLoading(false);
+                  showToast("Network Error: Please check your internet connection.", "error");
+                });
               }}
               className="w-full py-4 mt-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-indigo-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none disabled:opacity-60"
             >
@@ -658,20 +686,20 @@ const App = () => {
 
           {(activeTab === 'Settings' || activeTab === 'Provision') && user.role === 'ROLE_ADMIN' && (
             <div className="col-span-12 animate-in fade-in duration-500">
-          <UserManagement
-            authHeaders={authHeaders}
-            onDeleteUser={async (id) => {
-              handleDeleteRequest(id, 'user');
-            }}
-            onToggleStatus={async (id, currentStatus) => {
-              const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
-                method: 'PATCH',
-                headers: { ...authHeaders, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: !currentStatus })
-              });
-              if (!response.ok) throw new Error("Status update failed");
-            }}
-          />
+         <UserManagement
+          authHeaders={authHeaders}
+          onDeleteUser={async (id) => {
+            handleDeleteRequest(id, 'user');
+          }}
+          onToggleStatus={async (id) => {
+            const response = await fetch(`${baseUrl}/api/users/${id}/toggle-status`, {
+              method: 'PATCH',
+              headers: { ...authHeaders, 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error("Status update failed");
+            fetchData();
+          }}
+        />
         </div>
           )}
         </div>
