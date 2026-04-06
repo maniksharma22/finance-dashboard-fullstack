@@ -30,6 +30,13 @@ const StatCard = ({ label, amount, icon, trend, color = "text-slate-900" }) => (
   </div>
 );
 
+const navItems = [
+  { name: 'Dashboard', icon: <Activity size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
+  { name: 'Analytics', icon: <PieChart size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST'] },
+  { name: 'Wallet', icon: <Wallet size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
+  { name: 'Settings', icon: <SettingsIcon size={18} />, roles: ['ROLE_ADMIN'] }
+];
+
 const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8081").replace(/\/$/, '');
 
 const App = () => {
@@ -295,13 +302,6 @@ const handleLogout = () => {
   setSearchTerm('');
   showToast("Logged out successfully", "success"); 
 };
-
-const navItems = [
-  { name: 'Dashboard', icon: <Activity size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
-  { name: 'Analytics', icon: <PieChart size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST'] },
-  { name: 'Wallet', icon: <Wallet size={18} />, roles: ['ROLE_ADMIN', 'ROLE_ANALYST', 'ROLE_VIEWER'] },
-  { name: 'Settings', icon: <SettingsIcon size={18} />, roles: ['ROLE_ADMIN'] }
-];
 
   const pieChartOptions = {
     maintainAspectRatio: false,
