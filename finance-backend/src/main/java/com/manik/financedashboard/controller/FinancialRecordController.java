@@ -14,31 +14,37 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/records")
 @RequiredArgsConstructor
-// @CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:5173")
 public class FinancialRecordController {
 
     private final FinancialRecordService service;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ANALYST', 'ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<FinancialRecord> create(@RequestBody FinancialRecord record) {
         return ResponseEntity.ok(service.addRecord(record));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<FinancialRecord> update(@PathVariable Long id, @RequestBody FinancialRecord record) {
+        return ResponseEntity.ok(service.updateRecord(id, record));
+    }
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('VIEWER', 'ANALYST', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_VIEWER', 'ROLE_ANALYST', 'ROLE_ADMIN')")
     public ResponseEntity<List<FinancialRecord>> getAll() {
         return ResponseEntity.ok(service.getAll());
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasAnyRole('VIEWER', 'ANALYST', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_VIEWER', 'ROLE_ANALYST', 'ROLE_ADMIN')")
     public ResponseEntity<Map<String, Object>> getSummary() {
         return ResponseEntity.ok(service.getSummary());
     }
 
     @GetMapping("/filter")
-    @PreAuthorize("hasAnyRole('VIEWER', 'ANALYST', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_VIEWER', 'ROLE_ANALYST', 'ROLE_ADMIN')")
     public ResponseEntity<List<FinancialRecord>> filterRecords(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String category,
@@ -48,7 +54,7 @@ public class FinancialRecordController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.deleteRecord(id);
         return ResponseEntity.noContent().build();
