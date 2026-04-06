@@ -26,5 +26,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Builder.Default
     private boolean active = true;
+
+    private java.time.LocalDateTime lastLogin;
 }
