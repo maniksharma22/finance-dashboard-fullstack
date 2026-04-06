@@ -1,13 +1,14 @@
 import React from 'react';
 import { Filter, CheckCircle2, Trash2, Plus, X, CreditCard, Tag, FileText, Edit3, ChevronLeft, ChevronRight, Calendar, Loader2 } from 'lucide-react';
 
-const [actionLoading, setActionLoading] = React.useState({});
 
   const FinancialLog = ({
     records, totalRecords, user, onDelete, showForm, setShowForm,
     formData, setFormData, handleSubmit,
     currentPage, setCurrentPage, totalPages
   }) => {
+
+    const [actionLoading, setActionLoading] = React.useState({});
 
     const handleEditInitiate = (record) => {
       setFormData({ 
